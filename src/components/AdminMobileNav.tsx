@@ -8,9 +8,10 @@ import { Menu, X } from "lucide-react";
 import { ADMIN_NAV_ITEMS } from "@/components/AdminNav";
 
 // Top bar + drawer untuk area admin di mobile — sidebar AdminNav disembunyikan di layar sempit.
-export function AdminMobileNav() {
+export function AdminMobileNav({ role }: { role: "admin" | "super_admin" }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const items = ADMIN_NAV_ITEMS.filter((item) => !item.superAdminOnly || role === "super_admin");
 
   return (
     <>
@@ -47,7 +48,7 @@ export function AdminMobileNav() {
                 <X size={18} />
               </button>
             </div>
-            {ADMIN_NAV_ITEMS.map((item) => {
+            {items.map((item) => {
               const Icon = item.icon;
               const isActive =
                 item.href === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.href);

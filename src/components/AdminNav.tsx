@@ -3,20 +3,22 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Users, ShieldCheck, ClipboardList, FileBarChart, LayoutGrid } from "lucide-react";
+import { Users, ShieldCheck, ClipboardList, FileBarChart, LayoutGrid, HardDrive } from "lucide-react";
 
 export const ADMIN_NAV_ITEMS = [
-  { href: "/admin", label: "Dashboard", icon: LayoutGrid },
-  { href: "/admin/report", label: "Report", icon: FileBarChart },
-  { href: "/admin/employees", label: "Karyawan", icon: Users },
-  { href: "/admin/admins", label: "Admin", icon: ShieldCheck },
-  { href: "/admin/absences", label: "Absence", icon: ClipboardList },
+  { href: "/admin", label: "Dashboard", icon: LayoutGrid, superAdminOnly: false },
+  { href: "/admin/report", label: "Report", icon: FileBarChart, superAdminOnly: false },
+  { href: "/admin/employees", label: "Karyawan", icon: Users, superAdminOnly: false },
+  { href: "/admin/admins", label: "Admin", icon: ShieldCheck, superAdminOnly: false },
+  { href: "/admin/absences", label: "Absence", icon: ClipboardList, superAdminOnly: false },
+  { href: "/admin/storage", label: "Storage", icon: HardDrive, superAdminOnly: true },
 ] as const;
 
 // Sidebar desktop untuk area admin — hanya tampil di layar lebar (lg+).
 // Di mobile, navigasi dipindah ke AdminMobileNav (top bar + drawer).
-export function AdminNav() {
+export function AdminNav({ role }: { role: "admin" | "super_admin" }) {
   const pathname = usePathname();
+  const items = ADMIN_NAV_ITEMS.filter((item) => !item.superAdminOnly || role === "super_admin");
 
   return (
     <nav className="hidden w-64 shrink-0 flex-col gap-1 border-r border-slate-200 bg-white p-4 lg:flex">
@@ -26,7 +28,7 @@ export function AdminNav() {
         </span>
         <span className="text-base font-bold text-slate-900">Absento</span>
       </Link>
-      {ADMIN_NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const Icon = item.icon;
         const isActive = item.href === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.href);
         return (
