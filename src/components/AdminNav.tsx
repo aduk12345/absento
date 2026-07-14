@@ -1,0 +1,49 @@
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { Users, ShieldCheck, ClipboardList, FileBarChart, LayoutGrid } from "lucide-react";
+
+export const ADMIN_NAV_ITEMS = [
+  { href: "/admin", label: "Dashboard", icon: LayoutGrid },
+  { href: "/admin/report", label: "Report", icon: FileBarChart },
+  { href: "/admin/employees", label: "Karyawan", icon: Users },
+  { href: "/admin/admins", label: "Admin", icon: ShieldCheck },
+  { href: "/admin/absences", label: "Absence", icon: ClipboardList },
+] as const;
+
+// Sidebar desktop untuk area admin — hanya tampil di layar lebar (lg+).
+// Di mobile, navigasi dipindah ke AdminMobileNav (top bar + drawer).
+export function AdminNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="hidden w-64 shrink-0 flex-col gap-1 border-r border-slate-200 bg-white p-4 lg:flex">
+      <Link href="/admin" className="mb-6 flex items-center gap-2 px-2">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 ring-2 ring-indigo-50">
+          <Image src="/logo.png" alt="Absento" width={28} height={28} />
+        </span>
+        <span className="text-base font-bold text-slate-900">Absento</span>
+      </Link>
+      {ADMIN_NAV_ITEMS.map((item) => {
+        const Icon = item.icon;
+        const isActive = item.href === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              isActive
+                ? "bg-indigo-50 text-indigo-700"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

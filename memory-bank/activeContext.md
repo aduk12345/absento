@@ -1,0 +1,97 @@
+# Active Context — eh-absence
+
+## Current Phase: Phase 3 — Implementasi Business Logic
+**Objective**: Mengisi halaman placeholder dengan logic sungguhan.
+**Status**: Manage Karyawan (CRUD) dan flow check-in/check-out **sudah selesai & terverifikasi end-to-end** (build sukses + test API lengkap: buat karyawan → login → checkin → checkin kedua ditolak → checkout → checkin lagi diperbolehkan). Manage Admin, Manage Absence, Report, History, Profile masih placeholder.
+
+## Recent Changes
+- Project Next.js 16 (App Router, TypeScript, Tailwind) di-scaffold via `create-next-app` langsung di root project (bukan subfolder terpisah).
+- Dependency terpasang: `firebase`, `firebase-admin`, `cloudinary`, `jose`.
+- Lib inti dibuat: `src/lib/firebase-admin.ts` (lazy singleton — penting, jangan diubah jadi eager lagi karena akan gagal saat `next build` collect page data), `src/lib/cloudinary.ts`, `src/lib/session.ts`.
+- Auth: custom login via `/api/auth/login` (query Firestore, cocokkan password plain text), session JWT di httpOnly cookie via `jose` — **bukan NextAuth**, keputusan final.
+- PWA: manual (bukan `next-pwa`, tidak kompatibel dengan Next.js 16) — `public/manifest.json`, `public/sw.js`, registrasi lewat `RegisterServiceWorker` client component di `layout.tsx`. Icon masih placeholder generated (perlu diganti logo asli).
+- Semua halaman route sudah ada sebagai placeholder dengan auth guard aktif (redirect ke `/login` kalau belum login, redirect silang antara area karyawan/admin sesuai role).
+- **Manage Karyawan selesai**: `GET/POST /api/employees`, `PATCH/DELETE /api/employees/[id]` + UI `EmployeesTable.tsx` (client component, role-aware — tombol hapus hanya muncul untuk `super_admin`). Pola: server component (`admin/employees/page.tsx`) query Firestore langsung untuk initial data, lalu interaksi lewat `fetch` ke API routes.
+- **Field `username` ditambahkan ke `employees`** (`string | null`, alfanumerik saja — divalidasi regex `^[a-zA-Z0-9]+$` di POST & PATCH). Login karyawan sekarang bisa pakai email, username, **atau no. HP** (`/api/auth/login` coba query by email → fallback username → fallback phone). Modal **Edit Karyawan** ditambahkan di `EmployeesTable.tsx` — semua role admin (bukan cuma `super_admin`) bisa mengubah nama/email/username/no. HP **dan** melihat & mengubah password (plain text) — keputusan eksplisit user, beda dari asumsi awal delete-only-super_admin. `GET /api/employees` sekarang mengembalikan field `password` juga (sebelumnya di-strip) karena semua admin boleh melihatnya.
+- **Aturan wajib isi Manage Karyawan (keputusan eksplisit user)**: `name` wajib diisi (create & edit, divalidasi server-side di POST dan PATCH — sebelumnya PATCH tidak cek ini sama sekali). `email`/`phone` opsional. Uniqueness dicek untuk email/username/phone masing-masing kalau field itu diisi.
+- **Field Username di form Tambah & Edit Karyawan visible, auto-update ikut nama, dan tetap editable manual (keputusan eksplisit user, hasil beberapa iterasi)**: `EmployeesTable.tsx` punya `buildUsernameSuggestion(name)` (helper client-side, logic sama dengan server: kata terakhir nama + suffix 4 digit acak). Username auto ter-regenerate di 3 momen: (1) modal Tambah dibuka (`openAddModal()`), (2) tombol refresh (`RefreshCw` icon) di klik (`regenerateUsername()`/analognya di Edit), (3) **field Nama di-blur** (`onBlur={handleNameBlur}` di form Tambah, `onBlur={handleEditNameBlur}` di form Edit) — ini overwrite username apa pun yang sudah diisi/diedit manual sebelumnya, termasuk di modal Edit (jadi kalau admin ganti nama karyawan lalu klik keluar dari field, username ikut berubah). Admin tetap bisa ketik manual kapan saja setelahnya. `POST /api/employees` terima `username` opsional dari client — kalau diisi divalidasi pattern+uniqueness (409 kalau bentrok), kalau kosong fallback ke `generateUniqueUsername()` server-side (retry 10x).
+- **Semua panel "Tambah" di halaman admin pakai `Modal` shared (`src/components/ui/Modal.tsx`), bukan toggle show/hide inline `Card` lagi** (keputusan eksplisit user, berlaku ke semua tempat dengan kebutuhan sama). Diterapkan di `EmployeesTable.tsx` (Tambah Karyawan + Edit Karyawan, dua-duanya sekarang modal), `AdminsTable.tsx` (Tambah Admin), `AbsencesTable.tsx` (Tambah Absen Manual). Pola untuk fitur baru ke depan: pakai `<Modal title="..." onClose={...}>` dari `ui/Modal.tsx`, jangan bikin overlay manual atau toggle `showForm` inline `Card` baru. Catatan: edit-in-place di dalam baris tabel (inline edit row di `AbsencesTable.tsx` & `AdminsTable.tsx`, bukan panel "Tambah") **tidak** diubah ke modal — beda pola UX, di luar scope permintaan ini.
+- **Check-in/check-out selesai**: `POST /api/absences/checkin` (create doc, tolak kalau masih ada sesi aktif) dan `POST /api/absences/checkout` (update doc yang `checkoutTime == null`). Halaman `/` query sesi aktif server-side, render `AbsenPanel.tsx` (client component: `getUserMedia` capture via canvas → Geolocation API → upload signed ke Cloudinary → submit ke API).
+- **Pola berulang yang dipakai**: halaman admin/karyawan sebagai server component untuk initial data (query `getAdminDb()` langsung), lalu delegasikan interaksi ke client component yang `fetch` API routes. Ikuti pola ini untuk fitur berikutnya (Manage Admin, Manage Absence, Report).
+
+## Aturan Password Minimal 6 Karakter (Ditambahkan)
+Rule "password minimal 6 karakter" sekarang ditegakkan di **semua** titik pembuatan/perubahan password, bukan cuma ganti password profile (yang sudah lebih dulu punya validasi ini):
+- `POST /api/admins` (buat admin baru) — server-side check ditambahkan, plus client-side check di `AdminsTable.tsx` (`handleAdd`).
+- `PATCH /api/employees/[id]` (edit karyawan, field `password` opsional oleh admin) — server-side check ditambahkan, plus client-side check di `EmployeesTable.tsx` (`handleEditSubmit`).
+- `POST /api/auth/change-password` — sudah ada validasi ini sebelumnya, tidak diubah.
+- **Tidak disentuh**: `POST /api/employees` (buat karyawan baru) — password selalu `DEFAULT_PASSWORD = "123456789"` (9 karakter, sudah otomatis lolos), tidak ada input password manual di form Tambah Karyawan.
+- **Pola untuk fitur baru ke depan**: setiap kali ada endpoint yang menerima password baru dari user (bukan default sistem), tambahkan `if (password.length < 6) return 400` di server route DAN validasi cermin di client sebelum submit.
+
+## Report: Foto & Lokasi Dibuka Internal (bukan Link Eksternal)
+`ReportView.tsx` diubah supaya link foto/lokasi tidak lagi buka tab baru — sekarang ikuti pola yang sudah ada di `HistoryList.tsx`:
+- **Foto**: klik tombol "In"/"Out" buka lightbox internal (`<img>` fullscreen overlay + tombol close, state `zoomPhoto`), bukan `<a target="_blank">` ke Cloudinary URL langsung.
+- **Lokasi**: klik tombol "In"/"Out" buka `Modal` (`ui/Modal.tsx`) berisi `LocationMap` (Leaflet, dynamic import `ssr:false`) + link "Buka di Google Maps" (`ExternalLink` icon, `target="_blank"`) sebagai fitur tambahan kalau user tetap mau lihat di Google Maps — state `mapModal` (`{lat, lng, label}`).
+- Diterapkan di kedua view (`table` desktop `lg:block` dan `Card` mobile `lg:hidden`).
+- **Pola untuk fitur baru ke depan**: kalau ada tampilan lain yang menampilkan foto/lokasi absen (selain `HistoryList.tsx` yang sudah duluan pakai pola ini), ikuti pola sama — jangan link foto/map langsung ke URL eksternal, selalu preview internal + tombol eksplisit "Buka di Google Maps" untuk map.
+
+## Report: Urutan Absence Terbaru di Atas
+`GET /api/report` (dipakai `ReportView.tsx`) — `orderBy("checkinTime", "asc")` diubah jadi `"desc"` supaya record absen terbaru tampil paling atas di tabel/list Report. Query masih pakai composite index yang sama (`employeeId` ASC + `checkinTime` DESC, sudah ada dari fitur History), jadi tidak perlu index baru. **Sengaja tidak diubah**: `GET /api/report/export` (Excel export) tetap `asc` — urutan kronologis lebih wajar untuk dokumen laporan yang dibuka orang lain.
+
+## Pagination Manage Karyawan & Manage Absence
+`src/components/ui/Pagination.tsx` (BARU) — komponen pagination client-side sederhana (info "Menampilkan X–Y dari Z" + tombol Sebelumnya/Berikutnya), dipakai di `EmployeesTable.tsx` dan `AbsencesTable.tsx`. **Pola**: pagination dilakukan client-side dengan `.slice()` di atas array yang sudah di-fetch penuh (bukan cursor-based Firestore pagination) — sesuai skala data (internal HR tool, ratusan bukan jutaan record). `PAGE_SIZE = 10` di kedua tempat. State `page` di-clamp ke `totalPages` supaya tidak out-of-range setelah delete. **Kalau nanti ada list baru butuh pagination**, pakai ulang komponen ini dengan pola yang sama, jangan bikin komponen pagination baru.
+
+## Filter Tanggal (Rentang) di Manage Absence (default: hari ini)
+`GET /api/absences` terima query param `startDate`/`endDate` (`YYYY-MM-DD`, opsional, bisa salah satu saja — yang kosong ikut nilai satunya) selain `employeeId` — filter berdasarkan `checkinTime` dalam rentang tanggal itu (00:00:00.000Z–23:59:59.999Z), bisa dikombinasi dengan `employeeId` (pakai composite index `employeeId` ASC + `checkinTime` DESC yang sudah ada dari fitur History/Report, tidak perlu index baru). **Awalnya sempat dibuat single-date (`?date=`) tapi user eksplisit minta bisa filter lebih dari 1 hari, jadi diganti jadi range** — pola query-nya sama seperti `/api/report`.
+`admin/absences/page.tsx` (server component) query awal **hanya hari ini** (bukan lagi `limit(500)` semua histori) dan kirim `defaultStartDate`+`defaultEndDate` (keduanya ISO date hari ini) ke `AbsencesTable.tsx`. `AbsencesTable.tsx` punya 2 input tanggal (Mulai/Akhir, mirip `ReportView.tsx`) + tombol "Terapkan" (fetch eksplisit, bukan auto-fetch tiap ganti tanggal — supaya user bisa set kedua tanggal dulu sebelum query jalan) + tombol "Hari Ini" untuk reset ke default kalau rentang sedang bukan hari ini. Validasi `startDate > endDate` di client sebelum fetch. Hasil fetch di-map jadi `employeeName` pakai daftar `employees` di props (API mentah tidak resolve nama). **Pola untuk fitur baru ke depan**: kalau nambah filter lain (mis. per source/status) di Manage Absence, ikuti pola sama — query param range di API route + tombol "Terapkan" eksplisit di client, bukan fetch-all-lalu-filter-di-client.
+
+## Bug Fix: request `/admin/*` hang tanpa selesai (loading terus) di dev
+
+**Gejala**: refresh halaman `/admin`, `/admin/employees`, `/admin/admins`, atau `/admin/absences` tanpa session valid — response tidak pernah selesai/menutup koneksi (browser loading spinner tidak berhenti), sedangkan `/admin/report`, `/`, dan `/login` normal.
+
+**Root cause**: `admin/layout.tsx` sudah punya guard `redirect()` kalau tidak ada session/bukan admin, tapi 4 dari 5 halaman admin (`admin/page.tsx`, `admin/employees/page.tsx`, `admin/admins/page.tsx`, `admin/absences/page.tsx`) **tidak** punya guard sendiri di level page — mereka cuma mengandalkan redirect dari layout, padahal tetap langsung eksekusi query Firestore tanpa syarat. Hanya `admin/report/page.tsx` yang dari awal punya guard eksplisit (`getSession()` + `redirect()` sendiri sebelum query). Di Next.js 16.2.10 (Turbopack dev), redirect dari layout ternyata tidak selalu menghentikan rendering child page dengan bersih ketika child juga melakukan async data fetching — request-nya nge-hang (connection tidak pernah close, dikonfirmasi lewat raw socket test: `cat <&3` block sampai timeout meskipun kirim `Connection: close`), bukan cuma soal compile lambat.
+
+**Fix**: tambahkan guard eksplisit yang sama (cek `getSession()`, `redirect("/login")` kalau tidak ada session, `redirect("/")` kalau bukan admin session) di keempat halaman itu juga, persis pola `admin/report/page.tsx` — jangan cuma andalkan redirect di layout untuk halaman yang melakukan data fetching sendiri. **Pola wajib untuk halaman admin baru ke depan**: selalu guard session di level page juga, bukan cuma di `admin/layout.tsx`.
+
+## Bug Fix: Service Worker cache stale bikin "Uncaught TypeError: network error" & stuck loading di dev
+
+**Gejala**: setelah login & pakai app beberapa saat (banyak edit + Fast Refresh terjadi), refresh browser → loading lama lalu console error `Uncaught TypeError: network error`, kadang disusul redirect aneh (`GET / 307`).
+
+**Root cause**: `RegisterServiceWorker.tsx` register `public/sw.js` **tanpa cek `NODE_ENV`** — jalan juga di `next dev`. `sw.js` pakai strategi network-first + cache-fallback untuk semua GET non-`/api/*`, termasuk request chunk JS `/_next/static/*` dan RSC navigation payload. Karena Turbopack Fast Refresh terus generate ulang chunk dengan hash baru tiap kali file di-edit (dan sepanjang sesi ini banyak sekali file di-edit), Service Worker yang sudah kadung registrasi dari load sebelumnya nyimpen cache chunk/RSC payload versi lama. Begitu browser butuh chunk versi baru yang direferensikan RSC payload lama itu, request-nya gagal (chunk lama sudah tidak ada) → `network error`, dan browser nyangkut nunggu chunk yang tidak akan pernah datang.
+
+**Fix**: `src/components/RegisterServiceWorker.tsx` sekarang cek `process.env.NODE_ENV === "production"` — cuma register SW di production build. Di dev mode, sebaliknya, **unregister semua SW registration yang ada + hapus semua Cache Storage** (`caches.keys()` → `caches.delete()`) supaya SW nyasar dari sesi/testing sebelumnya (mis. pernah coba `npm run build && npm run start` di browser yang sama) ikut dibersihkan otomatis. **Pola wajib**: service worker/PWA caching **jangan pernah aktif di dev mode** — selalu gate dengan `NODE_ENV === "production"` kalau nambah SW baru atau ubah `sw.js`.
+
+## Update Password Admin (Manage Admin)
+`PATCH /api/admins/[id]` sekarang menerima field `password` opsional (validasi minimal 6 karakter, sama pola dengan endpoint lain). Aturan otorisasi baru (beda dari `name`/`role` yang tetap super_admin-only):
+- **super_admin**: bisa update password admin manapun (juga tetap satu-satunya yang bisa ubah `name`/`role`).
+- **admin biasa**: hanya bisa update password **miliknya sendiri** (`id === session.adminId`), tidak bisa menyentuh admin lain sama sekali — request ke ID lain ditolak 403 sebelum body dibaca.
+- Kalau bukan super_admin dan bukan diri sendiri → 403. Kalau field `name`/`role` dikirim oleh non-super_admin, diabaikan (bukan error) — hanya `password` yang diproses untuk mereka.
+
+`AdminsTable.tsx`: kolom "Aksi" sekarang muncul juga untuk admin biasa (bukan cuma `isSuperAdmin`) **kalau** baris tersebut adalah dirinya sendiri (`canEditRow()` helper: `isSuperAdmin || admin.id === currentAdminId`). Baris admin lain untuk non-super_admin tetap tanpa tombol aksi apa pun. Form edit menampilkan input Nama & select Role hanya untuk `isSuperAdmin`; input Password baru (opsional saat isSuperAdmin, wajib diisi saat admin biasa edit dirinya sendiri) selalu muncul untuk siapa pun yang `canEditRow`. Tombol "Hapus" tetap `isSuperAdmin`-only (tidak berubah). **Pola untuk fitur baru ke depan**: kalau ada aksi lain yang campur (sebagian super_admin-only, sebagian self-service), pisahkan gating per-field/per-tombol seperti ini, jangan gate seluruh kolom/baris dengan satu flag `isSuperAdmin` saja.
+
+## Active Decisions & Considerations
+- **Password disimpan plain text untuk versi awal** (keputusan eksplisit user, demi kecepatan development). Ini technical debt yang **wajib** diperbaiki sebelum data karyawan sungguhan dipakai — lihat `techContext.md`.
+- Karena custom login (bukan Firebase Auth), **semua akses Firestore wajib lewat API routes** — tidak ada shortcut client-side Firestore SDK untuk data apa pun. Sudah diterapkan konsisten di scaffold (`getAdminDb()` hanya dipanggil dari dalam API routes).
+- **Session strategy sudah final**: JWT custom (`jose`) di httpOnly cookie, bukan NextAuth.
+- `.env.local` tidak pernah disimpan di repo (di-generate sementara untuk testing lalu dihapus lagi) — pakai `.env.local.example` sebagai template.
+- Beberapa hal masih terbuka (lihat "Belum Diputuskan" di masing-masing file docs):
+  - Definisi status pada history absen (terkait izin/cuti) — belum dipikirkan.
+  - Kebijakan retensi/auto-delete foto lama di Cloudinary — belum diputuskan.
+
+## Next Immediate Steps
+- [x] Isi `.env.local` dengan kredensial Firebase (project `absence-dd5b3`, dari service account JSON) — Firestore database sudah dibuat & terverifikasi terkoneksi (test lewat `/api/auth/login`, dapat response 401 "Akun tidak ditemukan" yang menandakan query jalan normal, cuma datanya belum ada).
+- [x] Isi kredensial Cloudinary di `.env.local` — sudah terisi, tapi belum terverifikasi konektivitasnya (sandbox development tidak punya akses keluar ke `api.cloudinary.com`, ETIMEDOUT/ENETUNREACH saat test `cloudinary.api.ping()`). Perlu ditest ulang di environment dengan akses internet normal.
+- [x] Akun **super_admin** pertama sudah dibuat manual di Firestore (`admins` collection) lewat route seeding sementara (dibuat & dihapus lagi setelah dipakai — tidak ada endpoint seeding publik yang tersisa di kode). Kredensial: username `superadmin`, password di-set manual (tidak dicatat di sini, plain text sesuai technical debt). Login sudah diverifikasi berhasil (`POST /api/auth/login` → `{"role":"super_admin"}`).
+- [x] Implementasi API routes `/api/absences/checkin` dan `/api/absences/checkout` — terverifikasi end-to-end via curl.
+- [x] Implementasi UI halaman Absen: kamera (`getUserMedia`) + Geolocation API + upload ke Cloudinary via `/api/cloudinary/sign` — kode sudah ada di `AbsenPanel.tsx`, **belum ditest di browser sungguhan** (cuma API-nya yang ditest pakai URL foto dummy).
+- [x] Implementasi CRUD Manage Karyawan (API routes + UI form/tabel).
+- [ ] Test manual di browser: buka `/login`, login sebagai `budi@test.com` / `123456789`, coba flow check-in dengan kamera & lokasi asli.
+- [ ] Implementasi CRUD Manage Admin (khusus super_admin).
+- [ ] Implementasi Manage Absence (koreksi + audit log ke `absence_audit_logs`).
+- [ ] Implementasi Report + export Excel (sesuai wireframe di `docs/features.md`).
+- [ ] Implementasi halaman History (list & detail absen karyawan, read-only, filter per bulan).
+- [ ] Implementasi halaman Profile (detail karyawan, ganti password dengan re-auth).
+- [ ] User review tampilan Report setelah UI dibuat (masih menunggu, sesuai permintaan awal).
+
+## Links
+- Lihat `progress.md` untuk breakdown fase & checklist lengkap.
+- Dokumen sumber detail: `docs/tech-stack.md`, `docs/features.md`, `docs/database-schema.md`, `docs/cloudinary-schema.md`.

@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* Dark mode dimatikan total sesuai keputusan produk — aplikasi selalu light,
+   tidak peduli device/browser user diset dark mode. JANGAN tambahkan blok
+   @media (prefers-color-scheme: dark) atau class dark: di komponen manapun. */
+:root {
+  color-scheme: light only;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --brand: #4f46e5;
+  --brand-light: #6366f1;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand: var(--brand);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  color-scheme: light only;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Atribusi peta Leaflet/CARTO WAJIB tetap ada (syarat lisensi tile gratis) — cuma
+   dibuat sekecil & se-tidak-mengganggu mungkin, bukan dihapus. JANGAN set display:none
+   atau hapus TileLayer attribution di LocationMap.tsx, itu melanggar ToS CARTO. */
+.leaflet-control-attribution {
+  background: transparent !important;
+  font-size: 8px !important;
+  line-height: 1.2 !important;
+  padding: 1px 4px !important;
+  opacity: 0.45;
+  transition: opacity 0.2s ease;
+}
+
+.leaflet-control-attribution:hover {
+  opacity: 0.9;
+}
+
+.leaflet-control-attribution a {
+  color: inherit !important;
+}
