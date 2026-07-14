@@ -2,35 +2,42 @@
 
 ## Struktur Folder
 
+Dua jenis foto dipisah ke sub-folder sendiri-sendiri di bawah `absence/`, supaya tidak bercampur (foto absen per-hari vs foto profil yang jarang berubah):
+
 ```
 absence/
-  {employeeId}/
-    {yyyy-MM}/
-      checkin_{timestamp}.jpg
-      checkout_{timestamp}.jpg
+  attendance/
+    {employeeId}/
+      {yyyy-MM}/
+        checkin_{timestamp}.jpg
+        checkout_{timestamp}.jpg
+  employees/
+    {employeeId}/
+      profile_{timestamp}.jpg
 ```
 
 Contoh nyata:
 ```
-absence/emp_9f8a2c/2026-07/checkin_1752192000000.jpg
-absence/emp_9f8a2c/2026-07/checkout_1752221400000.jpg
+absence/attendance/emp_9f8a2c/2026-07/checkin_1752192000000.jpg
+absence/attendance/emp_9f8a2c/2026-07/checkout_1752221400000.jpg
+absence/employees/emp_9f8a2c/profile_1752190000000.jpg
 ```
 
 **Alasan struktur ini:**
-- Per `employeeId` → gampang audit/lihat semua foto 1 karyawan, dan gampang dihapus semua sekaligus kalau karyawan di-delete (Manage Karyawan, Super Admin).
-- Per bulan (`yyyy-MM`) di dalamnya → folder tidak membengkak jadi ribuan file dalam 1 folder (Cloudinary tetap bisa handle, tapi mempermudah browsing manual lewat Cloudinary dashboard kalau perlu cek manual), dan selaras dengan filter History/Report yang juga per bulan/range tanggal.
+- Dipisah `attendance/` vs `employees/` → foto absen (checkin/checkout, banyak & terus bertambah tiap hari) tidak bercampur dengan foto profil (satu per karyawan, jarang berubah) — lebih mudah dibedakan saat audit manual lewat Cloudinary dashboard maupun saat menghitung retensi/cleanup (retensi hanya relevan untuk `attendance/`, foto profil tidak ada siklus hapus otomatis).
+- Per `employeeId` di masing-masing sub-folder → gampang audit/lihat semua foto 1 karyawan, dan gampang dihapus semua sekaligus kalau karyawan di-delete (Manage Karyawan, Super Admin) — lihat `deleteEmployeePhotos()` yang menghapus kedua prefix.
+- Per bulan (`yyyy-MM`) khusus di `attendance/` → folder tidak membengkak jadi ribuan file dalam 1 folder, dan selaras dengan filter History/Report yang juga per bulan/range tanggal. Foto profil tidak perlu sub-folder bulan karena jumlahnya kecil (biasanya cuma foto terbaru yang relevan).
 
 ## Public ID (Naming Convention)
 
-Format: `{type}_{unixTimestampMillis}`
-
+**Foto absen** — Format: `{type}_{unixTimestampMillis}`
 - `type`: `checkin` atau `checkout`
-- Timestamp dipakai sebagai bagian nama supaya **unik otomatis** (tidak perlu generate UUID terpisah) dan **berurutan** secara natural kalau di-sort by name.
+- Full public_id: `absence/attendance/{employeeId}/{yyyy-MM}/{type}_{timestamp}`
 
-Full public_id (termasuk folder) yang dikirim ke Cloudinary:
-```
-absence/{employeeId}/{yyyy-MM}/{type}_{timestamp}
-```
+**Foto profil** — Format: `profile_{unixTimestampMillis}`
+- Full public_id: `absence/employees/{employeeId}/profile_{timestamp}`
+
+Timestamp dipakai sebagai bagian nama supaya **unik otomatis** (tidak perlu generate UUID terpisah) dan **berurutan** secara natural kalau di-sort by name.
 
 ## Metadata Tambahan (Context & Tags)
 
@@ -68,7 +75,8 @@ Menyambungkan proses upload foto (Cloudinary) dengan penyimpanan record absen (F
 ```
 1. Client ambil foto (getUserMedia) + lokasi (Geolocation API)
 2. Client → POST /api/cloudinary/sign
-              (kirim rencana public_id: absence/{employeeId}/{yyyy-MM}/{checkin|checkout}_{timestamp})
+              (kirim rencana public_id: absence/attendance/{employeeId}/{yyyy-MM}/{checkin|checkout}_{timestamp}
+               atau absence/employees/{employeeId}/profile_{timestamp} untuk foto profil)
    API route → generate signature (Cloudinary API Secret, server-only) → return signature
 3. Client → upload foto LANGSUNG ke Cloudinary (pakai signature)
    Cloudinary → return secure_url
@@ -100,7 +108,7 @@ Estimasi ukuran per foto setelah kompresi: **~100–250KB** (dari kemungkinan 2-
 
 ## Retensi & Penghapusan
 
-- **Saat karyawan dihapus** (Super Admin, hard delete): folder `absence/{employeeId}/` beserta seluruh isinya dihapus dari Cloudinary juga (pakai Admin API `delete_resources_by_prefix`), supaya tidak ada foto orphan yang tetap makan storage.
+- **Saat karyawan dihapus** (Super Admin, hard delete): kedua folder `absence/attendance/{employeeId}/` dan `absence/employees/{employeeId}/` beserta seluruh isinya dihapus dari Cloudinary juga (pakai Admin API `delete_resources_by_prefix`, lihat `deleteEmployeePhotos()` di `src/lib/cloudinary.ts`), supaya tidak ada foto orphan yang tetap makan storage.
 - **Saat 1 record absen dihapus** (Manage Absence/Koreksi, `DELETE /api/absences/[id]`): foto `checkinPhotoUrl` dan/atau `checkoutPhotoUrl` milik record tersebut ikut dihapus dari Cloudinary (pakai Upload API `uploader.destroy`, public_id diekstrak balik dari `secure_url` yang tersimpan di Firestore), supaya tidak ada foto orphan per-record.
   - **Hard delete, permanen** — tidak ada trash/recycle bin di Cloudinary secara default (kecuali akun berlangganan fitur Backup add-on, di luar cakupan aplikasi ini). `invalidate: true` juga langsung membersihkan cache CDN untuk URL tsb.
   - **Best-effort**: kalau penghapusan foto di Cloudinary gagal (network error, foto sudah tidak ada, dsb), kegagalan ini **tidak** membatalkan penghapusan record di Firestore — hanya dicatat ke log server (`console.error`). Ini supaya fitur hapus absence tetap bisa dipakai walau Cloudinary sedang bermasalah.

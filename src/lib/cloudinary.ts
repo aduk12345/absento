@@ -12,19 +12,30 @@ export { cloudinary };
 type AbsenceType = "checkin" | "checkout";
 
 // Folder & naming convention: docs/cloudinary-schema.md
+// - Foto absen (checkin/checkout): absence/attendance/{employeeId}/{yyyy-MM}/{type}_{timestamp}
+// - Foto profil karyawan: absence/employees/{employeeId}/profile_{timestamp}
 export function buildAbsencePublicId(
   employeeId: string,
   type: AbsenceType,
   timestampMillis: number
 ): string {
   const yyyyMM = new Date(timestampMillis).toISOString().slice(0, 7); // "2026-07"
-  return `absence/${employeeId}/${yyyyMM}/${type}_${timestampMillis}`;
+  return `absence/attendance/${employeeId}/${yyyyMM}/${type}_${timestampMillis}`;
+}
+
+export function buildProfilePublicId(employeeId: string, timestampMillis: number): string {
+  return `absence/employees/${employeeId}/profile_${timestampMillis}`;
 }
 
 export async function deleteEmployeePhotos(employeeId: string): Promise<void> {
-  await cloudinary.api.delete_resources_by_prefix(`absence/${employeeId}/`, {
-    invalidate: true,
-  });
+  await Promise.all([
+    cloudinary.api.delete_resources_by_prefix(`absence/attendance/${employeeId}/`, {
+      invalidate: true,
+    }),
+    cloudinary.api.delete_resources_by_prefix(`absence/employees/${employeeId}/`, {
+      invalidate: true,
+    }),
+  ]);
 }
 
 // secure_url yang disimpan di Firestore (checkinPhotoUrl/checkoutPhotoUrl) berbentuk

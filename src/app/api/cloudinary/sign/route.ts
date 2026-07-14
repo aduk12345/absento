@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cloudinary, buildAbsencePublicId } from "@/lib/cloudinary";
+import { cloudinary, buildAbsencePublicId, buildProfilePublicId } from "@/lib/cloudinary";
 import { getSession, isEmployeeSession } from "@/lib/session";
 
-// Signs a Cloudinary upload for checkin/checkout selfies.
+// Signs a Cloudinary upload for checkin/checkout selfies atau foto profil karyawan.
 // public_id is derived server-side (not trusted from client) per docs/cloudinary-schema.md.
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -10,14 +10,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { type } = (await request.json()) as { type?: "checkin" | "checkout" };
-  if (type !== "checkin" && type !== "checkout") {
+  const { type } = (await request.json()) as { type?: "checkin" | "checkout" | "profile" };
+  if (type !== "checkin" && type !== "checkout" && type !== "profile") {
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
   }
 
   const timestamp = Math.round(Date.now() / 1000);
   const timestampMillis = Date.now();
-  const publicId = buildAbsencePublicId(session.employeeId, type, timestampMillis);
+  const publicId =
+    type === "profile"
+      ? buildProfilePublicId(session.employeeId, timestampMillis)
+      : buildAbsencePublicId(session.employeeId, type, timestampMillis);
 
   // "quality" bukan parameter upload langsung yang valid untuk Cloudinary — harus
   // lewat "transformation" (mis. "q_auto:good"), jika tidak Cloudinary menghitung

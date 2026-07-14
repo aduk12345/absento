@@ -75,6 +75,15 @@ Rule "password minimal 6 karakter" sekarang ditegakkan di **semua** titik pembua
 - **Hapus data absensi lama (per bulan/tahun)**: `POST /api/admin/absences-cleanup` (super_admin only) — body `{mode: "month"|"year", year, month?, dryRun}`. `dryRun: true` return `{count}` saja (preview, dipakai tombol "Cek Jumlah Data"), `dryRun: false` benar-benar menghapus: foto Cloudinary (`checkinPhotoUrl`/`checkoutPhotoUrl`) dihapus lewat `deletePhotoByUrl()` per-chunk 20 (bukan `delete_resources_by_prefix` karena folder Cloudinary per-employee, bukan per-bulan-lintas-employee), lalu Firestore docs dihapus via `db.batch()` chunk 500. **Route menolak periode yang belum selesai** (`range.end >= now` → 400) supaya tidak menghapus data bulan berjalan. Satu entry ringkasan (bukan per-record) ditulis ke `absence_audit_logs` dengan `action: "bulk_delete"` — deviasi disengaja dari `logAbsenceAudit()` biasa (per-record terlalu berat untuk ratusan/ribuan record sekaligus).
 - **Pola untuk fitur bulk-delete lain ke depan**: ikuti pola dryRun/preview dulu sebelum delete sungguhan (2 request terpisah dari client, bukan langsung hapus dari 1 klik), dan selalu hapus Cloudinary dulu baru Firestore (best-effort, gagal Cloudinary tidak membatalkan hapus Firestore — sama seperti pola hapus 1 record di `/api/absences/[id]`).
 
+## Struktur Folder Cloudinary Dipisah: Foto Absen vs Foto Profil
+Folder Cloudinary direvisi (2026-07-14) supaya foto absen (checkin/checkout) tidak bercampur dengan foto profil karyawan:
+- Foto absen: `absence/attendance/{employeeId}/{yyyy-MM}/{checkin|checkout}_{timestamp}` (sebelumnya `absence/{employeeId}/{yyyy-MM}/...`, tanpa segmen `attendance/`).
+- Foto profil (fitur belum ada UI upload-nya, field `photoUrl` di `employees` baru diterima mentah lewat API, belum ada tempat isi dari client): `absence/employees/{employeeId}/profile_{timestamp}`.
+- `src/lib/cloudinary.ts`: `buildAbsencePublicId()` diupdate ke path baru, ditambah `buildProfilePublicId()` baru. `deleteEmployeePhotos()` sekarang hapus KEDUA prefix (`absence/attendance/{employeeId}/` dan `absence/employees/{employeeId}/`) paralel via `Promise.all`.
+- `/api/cloudinary/sign` sekarang terima `type: "checkin" | "checkout" | "profile"` (sebelumnya cuma 2 pertama) — kalau `profile`, pakai `buildProfilePublicId()`.
+- **Pola untuk fitur foto baru ke depan**: kalau nambah jenis foto lain (bukan absen/profil), buat sub-folder baru di bawah `absence/` (bukan flat di root), dan pastikan `deleteEmployeePhotos()` ikut menghapus prefix baru itu supaya tidak orphan saat karyawan dihapus.
+- Detail lengkap: `docs/cloudinary-schema.md`.
+
 ## Active Decisions & Considerations
 - **Password disimpan plain text untuk versi awal** (keputusan eksplisit user, demi kecepatan development). Ini technical debt yang **wajib** diperbaiki sebelum data karyawan sungguhan dipakai — lihat `techContext.md`.
 - Karena custom login (bukan Firebase Auth), **semua akses Firestore wajib lewat API routes** — tidak ada shortcut client-side Firestore SDK untuk data apa pun. Sudah diterapkan konsisten di scaffold (`getAdminDb()` hanya dipanggil dari dalam API routes).
