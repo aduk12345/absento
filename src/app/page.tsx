@@ -46,10 +46,10 @@ export default async function AbsenPage() {
         <header className="relative z-20 flex items-center justify-between bg-white/95 px-5 py-4 shadow-sm backdrop-blur-sm lg:px-8">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 ring-2 ring-indigo-50">
-              <Image src="/logo.png" alt="Absento" width={28} height={28} />
+              <Image src="/logo.png" alt="SJB Attendance" width={28} height={28} />
             </span>
             <span className="text-lg font-extrabold tracking-tight text-slate-900 lg:text-xl">
-              Absento
+              SJB Attendance
             </span>
           </div>
           <Avatar name={session.name} size="md" />

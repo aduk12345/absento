@@ -31,9 +31,9 @@ export function AdminMobileNav({ role }: { role: "admin" | "super_admin" }) {
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm lg:hidden">
         <Link href="/admin" className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 ring-2 ring-indigo-50">
-            <Image src="/logo.png" alt="Absento" width={22} height={22} />
+            <Image src="/logo.png" alt="SJB Attendance" width={22} height={22} />
           </span>
-          <span className="text-sm font-bold text-slate-900">Absento</span>
+          <span className="text-sm font-bold text-slate-900">SJB Attendance</span>
         </Link>
         <button
           type="button"

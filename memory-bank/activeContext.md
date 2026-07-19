@@ -115,6 +115,9 @@ Folder Cloudinary direvisi (2026-07-14) supaya foto absen (checkin/checkout) tid
 - [ ] Implementasi halaman Profile (detail karyawan, ganti password dengan re-auth).
 - [ ] User review tampilan Report setelah UI dibuat (masih menunggu, sesuai permintaan awal).
 
+## Rebrand: Absento → SJB Attendance (2026-07-19)
+Nama aplikasi diganti dari "Absento" jadi **"SJB Attendance"** (keputusan eksplisit user). Diterapkan di semua tempat nama brand muncul: `src/app/layout.tsx` (`metadata.title`, `appleWebApp.title`), `public/manifest.json` (`name`, `short_name`), `src/components/LoginForm.tsx`, `src/components/EmployeeNav.tsx`, `src/components/AdminNav.tsx`, `src/components/AdminMobileNav.tsx`, `src/app/page.tsx` (header logo + teks). `logo.png` (file gambar) tidak diganti — cuma teks/alt text. Nama repo/package (`eh-absence` di `package.json`) sengaja **tidak** diubah (nama kode/repo, beda dari nama brand — lihat `projectbrief.md`). Verifikasi: `npm run build` sukses (28 route, 0 error). **Pola untuk rebrand berikutnya**: cek titik-titik ini sebagai checklist lengkap kalau nama brand berubah lagi.
+
 ## Links
 - Lihat `progress.md` untuk breakdown fase & checklist lengkap.
 - Dokumen sumber detail: `docs/tech-stack.md`, `docs/features.md`, `docs/database-schema.md`, `docs/cloudinary-schema.md`.

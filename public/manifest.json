@@ -1,6 +1,6 @@
 {
-  "name": "Absento",
-  "short_name": "Absento",
+  "name": "SJB Attendance",
+  "short_name": "SJB Attendance",
   "description": "Aplikasi absensi karyawan dengan lokasi & selfie",
   "start_url": "/",
   "display": "standalone",

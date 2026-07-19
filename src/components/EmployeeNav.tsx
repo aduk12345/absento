@@ -20,9 +20,9 @@ export function EmployeeNav({ active }: { active: string }) {
     <nav className="hidden w-64 shrink-0 flex-col gap-1 border-r border-slate-200 bg-white p-4 lg:flex">
       <Link href="/" className="mb-6 flex items-center gap-2 px-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 ring-2 ring-indigo-50">
-          <Image src="/logo.png" alt="Absento" width={28} height={28} />
+          <Image src="/logo.png" alt="SJB Attendance" width={28} height={28} />
         </span>
-        <span className="text-base font-bold text-slate-900">Absento</span>
+        <span className="text-base font-bold text-slate-900">SJB Attendance</span>
       </Link>
       {ITEMS.map((item) => {
         const Icon = item.icon;

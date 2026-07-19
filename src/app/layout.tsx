@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Absento",
+  title: "SJB Attendance",
   description: "Aplikasi absensi karyawan dengan lokasi & selfie",
   manifest: "/manifest.json",
   icons: {
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Absento",
+    title: "SJB Attendance",
   },
 };
 

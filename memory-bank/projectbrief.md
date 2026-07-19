@@ -2,7 +2,7 @@
 
 ## Nama Project
 
-eh-absence (kode/repo). **Nama brand/produk: Absento** — dipilih agar general dan bisa dipakai lintas perusahaan (bukan nama internal).
+eh-absence (kode/repo). **Nama brand/produk: SJB Attendance** (sebelumnya "Absento", diganti 2026-07-19 atas permintaan eksplisit user).
 
 ## Ringkasan
 

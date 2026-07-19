@@ -45,7 +45,7 @@ export function LoginForm() {
           <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/30">
             <Fingerprint size={28} className="text-white" strokeWidth={2} />
           </span>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">absento</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">SJB Attendance</h1>
           <p className="mt-1 text-sm text-slate-500">Masuk untuk mulai absen hari ini</p>
         </div>
 
