@@ -6,6 +6,7 @@ import { UserPlus, Power, Trash2, Pencil, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
@@ -451,9 +452,9 @@ export function EmployeesTable({
             <p className="text-xs text-slate-500">Minimal salah satu dari username, email, atau no. HP wajib diisi.</p>
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-slate-600">Password</label>
-              <Input
-                type="text"
+              <PasswordInput
                 placeholder="Password"
+                autoComplete="off"
                 value={editForm.password}
                 onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
                 required

@@ -57,6 +57,18 @@ export async function PATCH(
     return NextResponse.json({ error: "Admin tidak ditemukan" }, { status: 404 });
   }
 
+  // Cegah super_admin terakhir men-demote dirinya/admin lain jadi role "admin" biasa,
+  // supaya tidak ada momen 0 super_admin di sistem (butuh minimal 1 untuk kelola akun admin lain).
+  if (update.role === "admin" && doc.data()?.role === "super_admin") {
+    const superAdmins = await db.collection("admins").where("role", "==", "super_admin").get();
+    if (superAdmins.size <= 1) {
+      return NextResponse.json(
+        { error: "Tidak bisa mengubah role Super Admin terakhir" },
+        { status: 400 }
+      );
+    }
+  }
+
   await ref.update(update);
   return NextResponse.json({ ok: true });
 }
@@ -87,6 +99,18 @@ export async function DELETE(
   const doc = await ref.get();
   if (!doc.exists) {
     return NextResponse.json({ error: "Admin tidak ditemukan" }, { status: 404 });
+  }
+
+  // Cegah super_admin terakhir terhapus, supaya selalu ada minimal 1 akun yang bisa
+  // mengelola akun admin lain (mis. kalau ada 2 super_admin dan salah satu menghapus yang lain).
+  if (doc.data()?.role === "super_admin") {
+    const superAdmins = await db.collection("admins").where("role", "==", "super_admin").get();
+    if (superAdmins.size <= 1) {
+      return NextResponse.json(
+        { error: "Tidak bisa menghapus Super Admin terakhir" },
+        { status: 400 }
+      );
+    }
   }
 
   await ref.delete();

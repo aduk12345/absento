@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { Users, ShieldCheck, ClipboardList, FileBarChart, LayoutGrid, HardDrive } from "lucide-react";
+import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Users,
+  ShieldCheck,
+  ClipboardList,
+  FileBarChart,
+  LayoutGrid,
+  HardDrive,
+  LogOut,
+} from "lucide-react";
 
 export const ADMIN_NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutGrid, superAdminOnly: false },
@@ -18,7 +27,20 @@ export const ADMIN_NAV_ITEMS = [
 // Di mobile, navigasi dipindah ke AdminMobileNav (top bar + drawer).
 export function AdminNav({ role }: { role: "admin" | "super_admin" }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
   const items = ADMIN_NAV_ITEMS.filter((item) => !item.superAdminOnly || role === "super_admin");
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <nav className="hidden w-64 shrink-0 flex-col gap-1 border-r border-slate-200 bg-white p-4 lg:flex">
@@ -46,6 +68,15 @@ export function AdminNav({ role }: { role: "admin" | "super_admin" }) {
           </Link>
         );
       })}
+      <button
+        type="button"
+        onClick={handleLogout}
+        disabled={loggingOut}
+        className="mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50"
+      >
+        <LogOut size={18} />
+        {loggingOut ? "Logout..." : "Logout"}
+      </button>
     </nav>
   );
 }

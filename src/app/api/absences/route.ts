@@ -36,7 +36,13 @@ export async function GET(request: NextRequest) {
 
   query = query.orderBy("checkinTime", "desc");
 
-  const snap = await query.limit(500).get();
+  let snap: FirebaseFirestore.QuerySnapshot;
+  try {
+    snap = await query.limit(500).get();
+  } catch (error) {
+    console.error("GET /api/absences failed:", error);
+    return NextResponse.json({ error: "Gagal memuat data absen" }, { status: 500 });
+  }
   const absences = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
   return NextResponse.json({ absences });

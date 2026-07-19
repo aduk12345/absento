@@ -3,15 +3,28 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, X, LogOut } from "lucide-react";
 import { ADMIN_NAV_ITEMS } from "@/components/AdminNav";
 
 // Top bar + drawer untuk area admin di mobile — sidebar AdminNav disembunyikan di layar sempit.
 export function AdminMobileNav({ role }: { role: "admin" | "super_admin" }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const items = ADMIN_NAV_ITEMS.filter((item) => !item.superAdminOnly || role === "super_admin");
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <>
@@ -68,6 +81,15 @@ export function AdminMobileNav({ role }: { role: "admin" | "super_admin" }) {
                 </Link>
               );
             })}
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50"
+            >
+              <LogOut size={18} />
+              {loggingOut ? "Logout..." : "Logout"}
+            </button>
           </nav>
         </div>
       )}

@@ -6,6 +6,7 @@ import { AtSign, KeyRound, LogOut, Mail, Pencil, Phone, type LucideIcon } from "
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
 
@@ -203,8 +204,7 @@ export function ProfileForm({ employee }: { employee: EmployeeProfile }) {
               <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                 Password Lama
               </label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={oldPassword}
                 onChange={(e) => setOldPassword(e.target.value)}
                 required
@@ -214,8 +214,7 @@ export function ProfileForm({ employee }: { employee: EmployeeProfile }) {
               <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                 Password Baru
               </label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
@@ -225,8 +224,7 @@ export function ProfileForm({ employee }: { employee: EmployeeProfile }) {
               <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                 Konfirmasi Password Baru
               </label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required

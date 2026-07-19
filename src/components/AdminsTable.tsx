@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
 
@@ -156,13 +157,14 @@ export function AdminsTable({
             <Input
               type="text"
               placeholder="Username"
+              autoComplete="off"
               value={form.username}
               onChange={(e) => setForm({ ...form, username: e.target.value })}
               required
             />
-            <Input
-              type="password"
+            <PasswordInput
               placeholder="Password"
+              autoComplete="new-password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
@@ -218,10 +220,10 @@ export function AdminsTable({
                             ) : (
                               <p className="font-semibold text-slate-900">{admin.name}</p>
                             )}
-                            <Input
-                              type="password"
+                            <PasswordInput
                               className="max-w-[180px]"
                               placeholder="Password baru"
+                              autoComplete="new-password"
                               value={editForm.password}
                               onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
                             />
@@ -342,10 +344,10 @@ export function AdminsTable({
                       ) : (
                         <p className="font-semibold text-slate-900">{admin.name}</p>
                       )}
-                      <Input
-                        type="password"
+                      <PasswordInput
                         className="max-w-[160px]"
                         placeholder="Password baru"
+                        autoComplete="new-password"
                         value={editForm.password}
                         onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
                       />

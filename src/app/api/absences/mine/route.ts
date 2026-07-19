@@ -46,13 +46,19 @@ export async function GET(request: NextRequest) {
   }
 
   const db = getAdminDb();
-  const snap = await db
-    .collection("absences")
-    .where("employeeId", "==", session.employeeId)
-    .where("checkinTime", ">=", start.toISOString())
-    .where("checkinTime", "<=", end.toISOString())
-    .orderBy("checkinTime", "desc")
-    .get();
+  let snap: FirebaseFirestore.QuerySnapshot;
+  try {
+    snap = await db
+      .collection("absences")
+      .where("employeeId", "==", session.employeeId)
+      .where("checkinTime", ">=", start.toISOString())
+      .where("checkinTime", "<=", end.toISOString())
+      .orderBy("checkinTime", "desc")
+      .get();
+  } catch (error) {
+    console.error("GET /api/absences/mine failed:", error);
+    return NextResponse.json({ error: "Gagal memuat riwayat absen" }, { status: 500 });
+  }
 
   const records = snap.docs.map((doc) => {
     const data = doc.data();
