@@ -100,6 +100,16 @@
 
 **Catatan tambahan**: user sempat mengubah `AbsenMapBackground.tsx` di luar sesi fix ini — blok notice error non-blocking + tombol "Coba Lagi" (`handleRetry`, ikon `RotateCw`) sudah dihapus dari JSX, jadi `errorMessage`/`handleRetry`/`RotateCw` sekarang unused (lint warning, bukan error). Belum dikonfirmasi apakah ini sengaja (mis. errorMessage/retry mau ditangani beda) — tanyakan ke user kalau relevan di sesi berikutnya sebelum "membersihkan" kode itu.
 
+## Fitur: Izin/Cuti ✅
+
+**Trigger**: User brainstorm fitur izin/cuti (sebelumnya di luar scope MVP, lihat `projectbrief.md`), lalu minta lanjut implementasi. Konsep final: satu kategori "Izin" (bukan sub-tipe izin/sakit/cuti), approval flow wajib untuk pengajuan karyawan, hari dihitung inklusif.
+
+**Yang dikerjakan**: collection `leave_requests` baru, API routes (`/api/leaves/mine`, `/api/leaves`, `/api/leaves/[id]`), halaman & menu baru untuk karyawan (`/leave`) dan admin (`/admin/leaves` + tombol "Tambah Izin" di Manage Absence), integrasi ke History (badge per-pengajuan) dan Report (StatCard + baris per-hari + Excel). Detail lengkap di `activeContext.md`.
+
+**Verifikasi**: `npm run build` sukses (34 route, 0 error), `npx eslint src/` bersih, `npx tsc --noEmit` bersih.
+
+**Belum dilakukan**: test manual end-to-end di browser (ajukan → approve/reject → cek History & Report).
+
 ## Fitur: Filter History — Bulan atau Custom Date Range ✅
 
 **Trigger**: User minta filter di halaman History bisa pilih per bulan (seperti sebelumnya) ATAU rentang tanggal custom.

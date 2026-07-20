@@ -21,6 +21,7 @@ export type Absence = {
   checkoutTime: string | null;
   source: "employee" | "admin";
   reason: string | null;
+  status?: "complete" | "incomplete";
 };
 
 const SELECT_CLASS =
@@ -436,7 +437,14 @@ export function AbsencesTable({
                   ) : (
                     <>
                       <td className="px-5 py-3 text-slate-600">{formatDateTime(absence.checkinTime)}</td>
-                      <td className="px-5 py-3 text-slate-600">{formatDateTime(absence.checkoutTime)}</td>
+                      <td className="px-5 py-3 text-slate-600">
+                        {formatDateTime(absence.checkoutTime)}
+                        {absence.status === "incomplete" && (
+                          <span className="ml-2 inline-block">
+                            <Badge tone="orange">Tidak Lengkap</Badge>
+                          </span>
+                        )}
+                      </td>
                       <td className="px-5 py-3">
                         <Badge tone={absence.source === "admin" ? "orange" : "green"}>
                           {absence.source === "admin" ? "Admin" : "Karyawan"}
@@ -552,7 +560,14 @@ export function AbsencesTable({
                   </div>
                   <div>
                     <p className="text-slate-400">Checkout</p>
-                    <p className="mt-0.5 font-medium text-slate-700">{formatDateTime(absence.checkoutTime)}</p>
+                    <p className="mt-0.5 font-medium text-slate-700">
+                      {formatDateTime(absence.checkoutTime)}
+                      {absence.status === "incomplete" && (
+                        <span className="ml-2 inline-block">
+                          <Badge tone="orange">Tidak Lengkap</Badge>
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <p className="text-xs text-slate-500">

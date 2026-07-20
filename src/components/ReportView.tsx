@@ -2,7 +2,16 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { CalendarRange, Download, MapPin, Image as ImageIcon, Users, Clock, ExternalLink, X } from "lucide-react";
+import {
+  CalendarRange,
+  CalendarOff,
+  Download,
+  MapPin,
+  Image as ImageIcon,
+  Users,
+  ExternalLink,
+  X,
+} from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -29,13 +38,55 @@ type ReportRecord = {
   checkoutLocation: { lat: number; lng: number } | null;
   checkoutPhotoUrl: string | null;
   durationMinutes: number | null;
+  status: "complete" | "incomplete";
+};
+
+type ReportLeave = {
+  id: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
 };
 
 type ReportData = {
   employee: { id: string; name: string };
   records: ReportRecord[];
-  summary: { totalHadir: number; totalWorkMinutes: number };
+  leaves: ReportLeave[];
+  summary: { totalHadir: number; totalWorkMinutes: number; totalIzin: number };
 };
+
+type MergedRow =
+  | { type: "absence"; date: string; record: ReportRecord }
+  | { type: "leave"; date: string; reason: string };
+
+// Setiap leave request beririsan rentang query di-expand jadi baris per-hari (dipotong ke
+// batas rentang query) supaya tampil sejajar dengan record absen di tabel yang sama.
+function buildMergedRows(data: ReportData, queryStart: string, queryEnd: string): MergedRow[] {
+  const absenceRows: MergedRow[] = data.records.map((r) => ({
+    type: "absence",
+    date: r.checkinTime.slice(0, 10),
+    record: r,
+  }));
+
+  const leaveRows: MergedRow[] = [];
+  for (const leave of data.leaves) {
+    const start = leave.startDate > queryStart ? leave.startDate : queryStart;
+    const end = leave.endDate < queryEnd ? leave.endDate : queryEnd;
+    if (start > end) continue;
+    const cursor = new Date(`${start}T00:00:00.000Z`);
+    const endDateObj = new Date(`${end}T00:00:00.000Z`);
+    while (cursor <= endDateObj) {
+      leaveRows.push({
+        type: "leave",
+        date: cursor.toISOString().slice(0, 10),
+        reason: leave.reason,
+      });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  }
+
+  return [...absenceRows, ...leaveRows].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+}
 
 const MAX_RANGE_DAYS = 31;
 const SELECT_CLASS =
@@ -93,6 +144,11 @@ export function ReportView({ employees }: { employees: ReportEmployee[] }) {
   }, [startDate, endDate]);
 
   const rangeInvalid = rangeDays > MAX_RANGE_DAYS || rangeDays < 1;
+
+  const mergedRows = useMemo(
+    () => (data ? buildMergedRows(data, startDate, endDate) : []),
+    [data, startDate, endDate]
+  );
 
   async function handleShow() {
     setError(null);
@@ -217,10 +273,10 @@ export function ReportView({ employees }: { employees: ReportEmployee[] }) {
               tone="emerald"
             />
             <StatCard
-              label="Total Jam Kerja"
-              value={formatDuration(data.summary.totalWorkMinutes)}
-              icon={Clock}
-              tone="amber"
+              label="Total Izin"
+              value={`${data.summary.totalIzin} hari`}
+              icon={CalendarOff}
+              tone="rose"
             />
           </div>
 
@@ -245,7 +301,24 @@ export function ReportView({ employees }: { employees: ReportEmployee[] }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.records.map((r) => {
+                  {mergedRows.map((row) => {
+                    if (row.type === "leave") {
+                      return (
+                        <tr key={`leave-${row.date}`} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
+                          <td className="px-5 py-3 font-medium text-slate-900">
+                            {formatDate(`${row.date}T00:00:00`)}
+                          </td>
+                          <td className="px-5 py-3" colSpan={2}>
+                            <Badge tone="orange">Izin</Badge>
+                          </td>
+                          <td className="px-5 py-3 text-slate-500" colSpan={3}>
+                            {row.reason}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    const r = row.record;
                     const checkinMapsLink = mapsLink(r.checkinLocation);
                     const checkoutMapsLink = mapsLink(r.checkoutLocation);
                     return (
@@ -253,7 +326,9 @@ export function ReportView({ employees }: { employees: ReportEmployee[] }) {
                         <td className="px-5 py-3 font-medium text-slate-900">{formatDate(r.checkinTime)}</td>
                         <td className="px-5 py-3 text-slate-600">{formatTime(r.checkinTime)}</td>
                         <td className="px-5 py-3 text-slate-600">
-                          {r.checkoutTime ? (
+                          {r.status === "incomplete" ? (
+                            <Badge tone="orange">Tidak Lengkap</Badge>
+                          ) : r.checkoutTime ? (
                             formatTime(r.checkoutTime)
                           ) : (
                             <Badge tone="orange">Belum checkout</Badge>
@@ -317,7 +392,7 @@ export function ReportView({ employees }: { employees: ReportEmployee[] }) {
                       </tr>
                     );
                   })}
-                  {data.records.length === 0 && (
+                  {mergedRows.length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">
                         Tidak ada data absen pada rentang tanggal ini.
@@ -330,12 +405,29 @@ export function ReportView({ employees }: { employees: ReportEmployee[] }) {
           </div>
 
           <div className="flex flex-col gap-3 lg:hidden">
-            {data.records.map((r) => {
+            {mergedRows.map((row) => {
+              if (row.type === "leave") {
+                return (
+                  <Card key={`leave-${row.date}`} className="flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-semibold text-slate-900">{formatDate(`${row.date}T00:00:00`)}</p>
+                      <Badge tone="orange">Izin</Badge>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Alasan: <span className="text-slate-700">{row.reason}</span>
+                    </p>
+                  </Card>
+                );
+              }
+
+              const r = row.record;
               return (
                 <Card key={r.id} className="flex flex-col gap-3">
                   <div className="flex items-start justify-between gap-3">
                     <p className="font-semibold text-slate-900">{formatDate(r.checkinTime)}</p>
-                    {r.checkoutTime ? (
+                    {r.status === "incomplete" ? (
+                      <Badge tone="orange">Tidak Lengkap</Badge>
+                    ) : r.checkoutTime ? (
                       <Badge tone="green">Selesai</Badge>
                     ) : (
                       <Badge tone="orange">Belum checkout</Badge>
@@ -396,7 +488,7 @@ export function ReportView({ employees }: { employees: ReportEmployee[] }) {
                 </Card>
               );
             })}
-            {data.records.length === 0 && (
+            {mergedRows.length === 0 && (
               <Card className="py-8 text-center text-sm text-slate-400">
                 Tidak ada data absen pada rentang tanggal ini.
               </Card>

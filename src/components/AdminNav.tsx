@@ -4,24 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Users,
-  ShieldCheck,
-  ClipboardList,
-  FileBarChart,
-  LayoutGrid,
-  HardDrive,
-  LogOut,
-} from "lucide-react";
-
-export const ADMIN_NAV_ITEMS = [
-  { href: "/admin", label: "Dashboard", icon: LayoutGrid, superAdminOnly: false },
-  { href: "/admin/report", label: "Report", icon: FileBarChart, superAdminOnly: false },
-  { href: "/admin/employees", label: "Karyawan", icon: Users, superAdminOnly: false },
-  { href: "/admin/admins", label: "Admin", icon: ShieldCheck, superAdminOnly: false },
-  { href: "/admin/absences", label: "Absence", icon: ClipboardList, superAdminOnly: false },
-  { href: "/admin/storage", label: "Storage", icon: HardDrive, superAdminOnly: true },
-] as const;
+import { LogOut } from "lucide-react";
+import { ADMIN_NAV_ITEMS } from "@/lib/adminNav";
 
 // Sidebar desktop untuk area admin — hanya tampil di layar lebar (lg+).
 // Di mobile, navigasi dipindah ke AdminMobileNav (top bar + drawer).

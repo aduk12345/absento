@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { CalendarCheck, History, UserRound } from "lucide-react";
+import { CalendarCheck, CalendarOff, History, UserRound } from "lucide-react";
 
 const ITEMS = [
   { key: "absen", href: "/", label: "Absen", icon: CalendarCheck },
+  { key: "izin", href: "/leave", label: "Izin", icon: CalendarOff },
   { key: "history", href: "/history", label: "History", icon: History },
   { key: "profile", href: "/profile", label: "Profile", icon: UserRound },
 ] as const;

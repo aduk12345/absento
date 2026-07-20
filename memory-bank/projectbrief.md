@@ -32,7 +32,6 @@ Aplikasi absensi berbasis web (PWA, installable) untuk karyawan, dengan fitur ab
 **Di luar scope versi awal (dicatat untuk fase lanjutan):**
 - Radius/geofencing validasi lokasi absen.
 - Deteksi fake GPS / mock location.
-- Fitur izin/cuti.
 - Password hashing (saat ini plain text — technical debt yang wajib diperbaiki sebelum production sungguhan).
 - Aplikasi mobile native terpisah.
 - Multi-cabang/multi-lokasi kantor, shift kerja.

@@ -44,6 +44,7 @@ export default async function AdminAbsencesPage() {
       checkoutTime: data.checkoutTime ?? null,
       source: data.source,
       reason: data.reason ?? null,
+      status: data.status ?? "complete",
     };
   });
 

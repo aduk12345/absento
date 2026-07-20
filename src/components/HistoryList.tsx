@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { MapPin, ExternalLink, X, CalendarDays, Inbox, ImageOff } from "lucide-react";
+import { MapPin, ExternalLink, X, CalendarDays, CalendarOff, Inbox, ImageOff } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 
@@ -20,6 +20,16 @@ type HistoryRecord = {
   checkoutLocation: { lat: number; lng: number; accuracy?: number } | null;
   checkoutPhotoUrl: string | null;
   durationMinutes: number | null;
+  status: "complete" | "incomplete";
+};
+
+type LeaveEntry = {
+  id: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
 };
 
 function formatDuration(minutes: number | null): string {
@@ -95,6 +105,7 @@ export function HistoryList({
   );
   const [endDate, setEndDate] = useState(() => toDateInputValue(today));
   const [records, setRecords] = useState<HistoryRecord[]>([]);
+  const [leaves, setLeaves] = useState<LeaveEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<HistoryRecord | null>(null);
@@ -125,11 +136,32 @@ export function HistoryList({
         ? `startDate=${startDate}&endDate=${endDate}`
         : `month=${month}`;
 
-    fetch(`/api/absences/mine?${query}`)
-      .then(async (res) => {
+    const rangeStart =
+      filterMode === "custom" ? startDate : `${month}-01`;
+    const rangeEnd =
+      filterMode === "custom"
+        ? endDate
+        : toDateInputValue(new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0));
+
+    Promise.all([
+      fetch(`/api/absences/mine?${query}`).then(async (res) => {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "Gagal memuat riwayat");
-        if (!cancelled) setRecords(json.records);
+        return json.records as HistoryRecord[];
+      }),
+      fetch("/api/leaves/mine").then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) return [] as LeaveEntry[];
+        return (json.requests as LeaveEntry[]).filter(
+          (l) => l.status === "approved" && l.startDate <= rangeEnd && l.endDate >= rangeStart
+        );
+      }),
+    ])
+      .then(([recordsResult, leavesResult]) => {
+        if (!cancelled) {
+          setRecords(recordsResult);
+          setLeaves(leavesResult);
+        }
       })
       .catch((e) => {
         if (!cancelled) setError((e as Error).message);
@@ -227,7 +259,7 @@ export function HistoryList({
           </div>
         )}
 
-        {!loading && records.length === 0 && !error && (
+        {!loading && records.length === 0 && leaves.length === 0 && !error && (
           <div className="flex flex-col items-center gap-3 rounded-3xl border border-slate-200 bg-white px-6 py-10 text-center shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.12)]">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
               <Inbox size={22} strokeWidth={2} />
@@ -240,14 +272,23 @@ export function HistoryList({
 
         {!loading && (
           <div className="flex flex-col gap-3 pb-1">
-            {records.map((r) => (
-              <RecordCard
-                key={r.id}
-                record={r}
-                onDetail={() => setSelected(r)}
-                onZoom={setZoomPhoto}
-              />
-            ))}
+            {[
+              ...records.map((r) => ({ type: "absence" as const, date: r.checkinTime, record: r })),
+              ...leaves.map((l) => ({ type: "leave" as const, date: l.startDate, leave: l })),
+            ]
+              .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+              .map((item) =>
+                item.type === "absence" ? (
+                  <RecordCard
+                    key={item.record.id}
+                    record={item.record}
+                    onDetail={() => setSelected(item.record)}
+                    onZoom={setZoomPhoto}
+                  />
+                ) : (
+                  <LeaveCard key={item.leave.id} leave={item.leave} />
+                )
+              )}
           </div>
         )}
       </div>
@@ -287,6 +328,33 @@ export function HistoryList({
   );
 }
 
+function LeaveCard({ leave: l }: { leave: LeaveEntry }) {
+  const dateLabel =
+    l.startDate === l.endDate
+      ? formatDate(`${l.startDate}T00:00:00`)
+      : `${formatDate(`${l.startDate}T00:00:00`)} – ${formatDate(`${l.endDate}T00:00:00`)}`;
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.12)]">
+      <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-amber-400 to-orange-500" />
+      <div className="relative flex items-start justify-between gap-3 p-5 pl-6">
+        <div className="flex items-center gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 ring-1 ring-amber-100">
+            <CalendarOff size={20} strokeWidth={2.25} />
+          </span>
+          <div>
+            <p className="text-sm font-bold text-slate-900">{dateLabel}</p>
+            <p className="text-xs text-slate-400">
+              {l.totalDays} hari &middot; {l.reason}
+            </p>
+          </div>
+        </div>
+        <Badge tone="orange">Izin</Badge>
+      </div>
+    </div>
+  );
+}
+
 function RecordCard({
   record: r,
   onDetail,
@@ -297,6 +365,7 @@ function RecordCard({
   onZoom: (url: string) => void;
 }) {
   const isDone = Boolean(r.checkoutTime);
+  const isIncomplete = r.status === "incomplete";
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.12)] transition-shadow hover:shadow-lg">
@@ -331,7 +400,9 @@ function RecordCard({
             </div>
           </div>
 
-          {isDone ? (
+          {isIncomplete ? (
+            <Badge tone="orange">Tidak Lengkap</Badge>
+          ) : isDone ? (
             <Badge tone="green">Selesai</Badge>
           ) : (
             <Badge tone="orange">

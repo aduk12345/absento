@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { getSession, isEmployeeSession } from "@/lib/session";
+import { startOfJakartaDayUtc, endOfJakartaDayUtc, jakartaMonthRangeUtc } from "@/lib/date";
 
 const MAX_RANGE_DAYS = 31;
 
@@ -21,8 +22,8 @@ export async function GET(request: NextRequest) {
   let end: Date;
 
   if (startDate && endDate) {
-    start = new Date(`${startDate}T00:00:00.000Z`);
-    end = new Date(`${endDate}T23:59:59.999Z`);
+    start = startOfJakartaDayUtc(startDate);
+    end = endOfJakartaDayUtc(endDate);
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
       return NextResponse.json({ error: "Rentang tanggal tidak valid" }, { status: 400 });
@@ -41,8 +42,7 @@ export async function GET(request: NextRequest) {
     const targetMonth = month && /^\d{4}-\d{2}$/.test(month) ? month : defaultMonth;
 
     const [year, monthNum] = targetMonth.split("-").map(Number);
-    start = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0, 0));
-    end = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59, 999));
+    ({ start, end } = jakartaMonthRangeUtc(year, monthNum));
   }
 
   const db = getAdminDb();
@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
       checkoutLocation: data.checkoutLocation ?? null,
       checkoutPhotoUrl: data.checkoutPhotoUrl ?? null,
       durationMinutes,
+      status: data.status ?? "complete",
     };
   });
 

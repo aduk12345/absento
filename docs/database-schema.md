@@ -61,12 +61,40 @@ Record absen (checkin & checkout dalam 1 document per siklus).
 | `checkoutLocation` | `{ lat: number, lng: number } \| null` | |
 | `source` | `'employee' \| 'admin'` | `'admin'` kalau dibuat manual dari halaman admin |
 | `reason` | string \| null | **wajib diisi** kalau `source = 'admin'` |
+| `status` | `'complete' \| 'incomplete'` | opsional (absen tanpa field ini dianggap `'complete'`). `'incomplete'` = checkout dibuat otomatis oleh sistem karena hari sudah berganti sebelum karyawan checkout, bukan checkout asli — `checkoutPhotoUrl`/`checkoutLocation` selalu `null` untuk record `incomplete` |
 | `createdAt` | timestamp | |
 | `updatedAt` | timestamp | |
+
+**Aturan "beda hari, belum checkout" (ditegakkan di server, saat aksi ditekan):**
+- Karyawan tekan **Checkin** tapi masih ada sesi aktif (`checkoutTime == null`) dari **hari sebelumnya** (dibandingkan pakai zona waktu `Asia/Jakarta`, lihat `src/lib/date.ts`) → sesi lama otomatis di-checkout dengan `status: 'incomplete'` (tanpa foto/lokasi), baru checkin baru dibuat. Kalau sesi aktifnya masih hari yang sama → tetap ditolak 409 seperti sebelumnya.
+- Karyawan tekan **Checkout** tapi sesi aktifnya ternyata dari hari sebelumnya (kasus: halaman terbuka melewati tengah malam sebelum sempat sinkron ulang) → sesi lama tetap ditutup sebagai `incomplete`, foto/lokasi yang baru diambil **tidak dipakai** (bukan milik sesi lama itu).
+- Client (`AbsenPanel.tsx`) sudah punya watcher (`setTimeout` ke tengah malam + listener `visibilitychange`/`focus`) supaya tombol otomatis balik ke "Check-in" tanpa reload — safety net server di atas tetap ada untuk kasus race/edge.
 
 **Query pattern penting:**
 - Cek "apakah karyawan X masih punya sesi checkin yang belum checkout" → query `where employeeId == X AND checkoutTime == null`, harus ada composite index.
 - History per bulan → query `where employeeId == X AND checkinTime >= startOfMonth AND checkinTime <= endOfMonth`.
+
+### `leave_requests`
+
+Pengajuan izin karyawan (fitur ditambahkan setelah MVP awal — awalnya di luar scope, lihat `projectbrief.md`).
+
+| Field | Tipe | Keterangan |
+|---|---|---|
+| `employeeId` | string (ref → `employees`) | |
+| `startDate` / `endDate` | string (`yyyy-MM-dd`) | rentang izin, inklusif kedua ujung |
+| `totalDays` | number | dihitung server-side, inklusif (`endDate - startDate + 1`), tidak dipercaya dari client |
+| `reason` | string | wajib diisi |
+| `attachmentUrl` | string \| null | opsional, URL Cloudinary (belum ada UI upload) |
+| `status` | `'pending' \| 'approved' \| 'rejected'` | |
+| `source` | `'employee' \| 'admin'` | `'employee'` selalu masuk `pending` (butuh approval); `'admin'` (dari Manage Absence → Tambah Izin) langsung `approved` |
+| `reviewedBy` | string \| null (ref → `admins`) | admin yang approve/reject |
+| `reviewedAt` | timestamp \| null | |
+| `reviewNote` | string \| null | catatan admin, terutama saat reject |
+| `createdAt` / `updatedAt` | timestamp | |
+
+**Query pattern**: `where employeeId == X` (+ `where status == 'approved'` untuk Report/History) — filter tanggal dilakukan client-side setelah fetch (skala data kecil per karyawan), bukan composite range query di Firestore.
+
+**Catatan Report/History**: hari yang tercakup izin `approved` ditampilkan sebagai baris/badge "Izin" terpisah dari record `absences` (bukan menggantikan/mengisi field di `absences`) — lihat `src/lib/leave.ts` (`getApprovedLeavesInRange`, `overlapDays`).
 
 ### `absence_audit_logs`
 

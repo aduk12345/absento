@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { getSession, isAdminSession } from "@/lib/session";
+import { getApprovedLeavesInRange } from "@/lib/leave";
+import {
+  startOfJakartaDayUtc,
+  endOfJakartaDayUtc,
+  jakartaDateString,
+  formatJakartaDateId,
+  formatJakartaTimeId,
+} from "@/lib/date";
 
 const MAX_RANGE_DAYS = 31;
 
@@ -31,8 +39,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const start = new Date(`${startDate}T00:00:00.000Z`);
-  const end = new Date(`${endDate}T23:59:59.999Z`);
+  const start = startOfJakartaDayUtc(startDate);
+  const end = endOfJakartaDayUtc(endDate);
 
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
     return NextResponse.json({ error: "Rentang tanggal tidak valid" }, { status: 400 });
@@ -67,9 +75,11 @@ export async function GET(request: NextRequest) {
 
   sheet.columns = [
     { header: "Tanggal", key: "tanggal", width: 14 },
+    { header: "Status", key: "status", width: 12 },
     { header: "Checkin", key: "checkin", width: 12 },
     { header: "Checkout", key: "checkout", width: 12 },
     { header: "Durasi", key: "durasi", width: 12 },
+    { header: "Keterangan", key: "keterangan", width: 24 },
   ];
 
   const headerRow = sheet.getRow(1);
@@ -81,6 +91,9 @@ export async function GET(request: NextRequest) {
       fgColor: { argb: "FFE5E7EB" },
     };
   });
+
+  type ExportRow = { date: string; tanggal: string; status: string; checkin: string; checkout: string; durasi: string; keterangan: string };
+  const rows: ExportRow[] = [];
 
   snap.docs.forEach((doc) => {
     const data = doc.data();
@@ -94,18 +107,40 @@ export async function GET(request: NextRequest) {
         : null;
 
     const checkinDate = new Date(checkinTime);
-    sheet.addRow({
-      tanggal: checkinDate.toLocaleDateString("id-ID"),
-      checkin: checkinDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-      checkout: checkoutTime
-        ? new Date(checkoutTime).toLocaleTimeString("id-ID", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "-",
+    rows.push({
+      date: jakartaDateString(checkinDate),
+      tanggal: formatJakartaDateId(checkinDate),
+      status: "Hadir",
+      checkin: formatJakartaTimeId(checkinDate),
+      checkout: checkoutTime ? formatJakartaTimeId(new Date(checkoutTime)) : "-",
       durasi: formatDuration(durationMinutes),
+      keterangan: data.reason ?? "-",
     });
   });
+
+  const leaves = await getApprovedLeavesInRange(employeeId, startDate, endDate);
+  for (const leave of leaves) {
+    const rangeStart = leave.startDate > startDate ? leave.startDate : startDate;
+    const rangeEnd = leave.endDate < endDate ? leave.endDate : endDate;
+    if (rangeStart > rangeEnd) continue;
+    const cursor = startOfJakartaDayUtc(rangeStart);
+    const endDateObj = startOfJakartaDayUtc(rangeEnd);
+    while (cursor <= endDateObj) {
+      rows.push({
+        date: jakartaDateString(cursor),
+        tanggal: formatJakartaDateId(cursor),
+        status: "Izin",
+        checkin: "-",
+        checkout: "-",
+        durasi: "-",
+        keterangan: leave.reason,
+      });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  }
+
+  rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  rows.forEach((row) => sheet.addRow(row));
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = `report-${employeeName.replace(/[^a-zA-Z0-9]+/g, "_")}-${startDate}-${endDate}.xlsx`;

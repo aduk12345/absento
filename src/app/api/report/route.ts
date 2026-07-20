@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { getSession, isAdminSession } from "@/lib/session";
+import { getApprovedLeavesInRange, overlapDays } from "@/lib/leave";
+import { startOfJakartaDayUtc, endOfJakartaDayUtc } from "@/lib/date";
 
 const MAX_RANGE_DAYS = 31;
 
@@ -24,8 +26,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const start = new Date(`${startDate}T00:00:00.000Z`);
-  const end = new Date(`${endDate}T23:59:59.999Z`);
+  const start = startOfJakartaDayUtc(startDate);
+  const end = endOfJakartaDayUtc(endDate);
 
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
     return NextResponse.json({ error: "Rentang tanggal tidak valid" }, { status: 400 });
@@ -75,6 +77,7 @@ export async function GET(request: NextRequest) {
       checkoutLocation: data.checkoutLocation ?? null,
       checkoutPhotoUrl: data.checkoutPhotoUrl ?? null,
       durationMinutes,
+      status: data.status ?? "complete",
     };
   });
 
@@ -84,12 +87,25 @@ export async function GET(request: NextRequest) {
     0
   );
 
+  const leaves = await getApprovedLeavesInRange(employeeId, startDate, endDate);
+  const totalIzin = leaves.reduce(
+    (sum, l) => sum + overlapDays(l.startDate, l.endDate, startDate, endDate),
+    0
+  );
+
   return NextResponse.json({
     employee: { id: employeeDoc.id, name: employee.name },
     records,
+    leaves: leaves.map((l) => ({
+      id: l.id,
+      startDate: l.startDate,
+      endDate: l.endDate,
+      reason: l.reason,
+    })),
     summary: {
       totalHadir,
       totalWorkMinutes,
+      totalIzin,
     },
   });
 }

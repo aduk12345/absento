@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { getSession, isAdminSession } from "@/lib/session";
 import { PageHeader } from "@/components/ui/Card";
-import { ReportView, type ReportEmployee } from "@/components/ReportView";
+import { type ReportEmployee } from "@/components/ReportView";
+import { ReportTabs } from "@/components/ReportTabs";
 
 // docs/features.md — Report: filter per karyawan + range tanggal (maks 1 bulan), export Excel.
 export default async function AdminReportPage() {
@@ -21,9 +22,9 @@ export default async function AdminReportPage() {
     <div>
       <PageHeader
         title="Report Absensi"
-        description="Pilih karyawan dan rentang tanggal (maks. 1 bulan) untuk melihat riwayat absen."
+        description="Lihat riwayat absen per karyawan, ringkasan bulanan, atau ringkasan harian seluruh karyawan."
       />
-      <ReportView employees={employees} />
+      <ReportTabs employees={employees} />
     </div>
   );
 }

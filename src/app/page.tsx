@@ -3,6 +3,7 @@ import Image from "next/image";
 import { CalendarDays, Sparkles } from "lucide-react";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { getSession, isEmployeeSession } from "@/lib/session";
+import { isSameJakartaDay } from "@/lib/date";
 import { BottomNav } from "@/components/BottomNav";
 import { EmployeeNav } from "@/components/EmployeeNav";
 import { AbsenPanel } from "@/components/AbsenPanel";
@@ -29,7 +30,15 @@ export default async function AbsenPage() {
       .get(),
     db.collection("employees").doc(session.employeeId).get(),
   ]);
-  const hasActiveSession = !activeSnap.empty;
+  const activeSessionCheckinTime: string | null = activeSnap.empty
+    ? null
+    : activeSnap.docs[0].data().checkinTime;
+  // Sesi aktif cuma dianggap "sedang berjalan" kalau checkin-nya hari ini —
+  // sesi dari hari sebelumnya yang belum checkout ditutup otomatis saat
+  // karyawan menekan Checkin/Checkout (lihat /api/absences/checkin & checkout).
+  const hasActiveSession =
+    activeSessionCheckinTime != null &&
+    isSameJakartaDay(new Date(activeSessionCheckinTime), new Date());
   const avatarPhotoUrl: string | null = employeeDoc.data()?.photoUrl ?? null;
 
   const today = new Date().toLocaleDateString("id-ID", {
@@ -101,6 +110,7 @@ export default async function AbsenPage() {
             <div className="pointer-events-auto">
               <AbsenPanel
                 hasActiveSession={hasActiveSession}
+                activeSessionCheckinTime={hasActiveSession ? activeSessionCheckinTime : null}
                 avatarName={session.name}
                 avatarPhotoUrl={avatarPhotoUrl}
               />

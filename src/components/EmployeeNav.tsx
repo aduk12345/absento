@@ -3,10 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { CalendarCheck, History, UserRound } from "lucide-react";
+import { CalendarCheck, CalendarOff, History, UserRound } from "lucide-react";
 
 const ITEMS = [
   { href: "/", label: "Absen", icon: CalendarCheck },
+  { href: "/leave", label: "Izin", icon: CalendarOff },
   { href: "/history", label: "History", icon: History },
   { href: "/profile", label: "Profile", icon: UserRound },
 ] as const;

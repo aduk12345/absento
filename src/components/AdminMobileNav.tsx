@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, LogOut } from "lucide-react";
-import { ADMIN_NAV_ITEMS } from "@/components/AdminNav";
+import { ADMIN_NAV_ITEMS } from "@/lib/adminNav";
 
 // Top bar + drawer untuk area admin di mobile — sidebar AdminNav disembunyikan di layar sempit.
 export function AdminMobileNav({ role }: { role: "admin" | "super_admin" }) {

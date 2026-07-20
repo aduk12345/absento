@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { getSession, isAdminSession } from "@/lib/session";
 import { logAbsenceAudit } from "@/lib/audit";
+import { startOfJakartaDayUtc, endOfJakartaDayUtc } from "@/lib/date";
 
 // docs/features.md — Manage Absence: list semua absen (untuk admin) + tambah absen manual.
 // GET: opsional filter ?employeeId=... dan/atau ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
@@ -24,8 +25,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (startDate || endDate) {
-    const start = new Date(`${startDate ?? endDate}T00:00:00.000Z`);
-    const end = new Date(`${endDate ?? startDate}T23:59:59.999Z`);
+    const start = startOfJakartaDayUtc(startDate ?? endDate ?? "");
+    const end = endOfJakartaDayUtc(endDate ?? startDate ?? "");
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
       return NextResponse.json({ error: "Rentang tanggal tidak valid" }, { status: 400 });
     }
