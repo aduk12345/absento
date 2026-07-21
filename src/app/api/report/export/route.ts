@@ -13,13 +13,6 @@ import {
 
 const MAX_RANGE_DAYS = 31;
 
-function formatDuration(minutes: number | null): string {
-  if (minutes == null) return "-";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}j ${m}m`;
-}
-
 // docs/features.md — Report: tombol Export Excel, format .xlsx.
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -78,7 +71,6 @@ export async function GET(request: NextRequest) {
     { header: "Status", key: "status", width: 12 },
     { header: "Checkin", key: "checkin", width: 12 },
     { header: "Checkout", key: "checkout", width: 12 },
-    { header: "Durasi", key: "durasi", width: 12 },
     { header: "Keterangan", key: "keterangan", width: 24 },
   ];
 
@@ -92,19 +84,13 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  type ExportRow = { date: string; tanggal: string; status: string; checkin: string; checkout: string; durasi: string; keterangan: string };
+  type ExportRow = { date: string; tanggal: string; status: string; checkin: string; checkout: string; keterangan: string };
   const rows: ExportRow[] = [];
 
   snap.docs.forEach((doc) => {
     const data = doc.data();
     const checkinTime: string = data.checkinTime;
     const checkoutTime: string | null = data.checkoutTime ?? null;
-    const durationMinutes =
-      checkoutTime != null
-        ? Math.round(
-            (new Date(checkoutTime).getTime() - new Date(checkinTime).getTime()) / 60000
-          )
-        : null;
 
     const checkinDate = new Date(checkinTime);
     rows.push({
@@ -113,7 +99,6 @@ export async function GET(request: NextRequest) {
       status: "Hadir",
       checkin: formatJakartaTimeId(checkinDate),
       checkout: checkoutTime ? formatJakartaTimeId(new Date(checkoutTime)) : "-",
-      durasi: formatDuration(durationMinutes),
       keterangan: data.reason ?? "-",
     });
   });
@@ -132,7 +117,6 @@ export async function GET(request: NextRequest) {
         status: "Izin",
         checkin: "-",
         checkout: "-",
-        durasi: "-",
         keterangan: leave.reason,
       });
       cursor.setUTCDate(cursor.getUTCDate() + 1);

@@ -36,20 +36,16 @@ export async function GET(request: NextRequest) {
 
   const absenceByEmployee = new Map<
     string,
-    { checkinTime: string; checkoutTime: string | null; durationMinutes: number | null }
+    { checkinTime: string; checkoutTime: string | null }
   >();
   for (const doc of absencesSnap.docs) {
     const data = doc.data();
     const checkinTime: string = data.checkinTime;
     const checkoutTime: string | null = data.checkoutTime ?? null;
-    const durationMinutes =
-      checkoutTime != null
-        ? Math.round((new Date(checkoutTime).getTime() - new Date(checkinTime).getTime()) / 60000)
-        : null;
     // Karyawan seharusnya cuma punya 1 siklus checkin/checkout per hari — kalau ada lebih,
     // pakai yang paling awal (record pertama ditemukan cukup untuk ringkasan status per-hari).
     if (!absenceByEmployee.has(data.employeeId)) {
-      absenceByEmployee.set(data.employeeId, { checkinTime, checkoutTime, durationMinutes });
+      absenceByEmployee.set(data.employeeId, { checkinTime, checkoutTime });
     }
   }
 
@@ -71,7 +67,6 @@ export async function GET(request: NextRequest) {
         status: "hadir" as const,
         checkinTime: absence.checkinTime,
         checkoutTime: absence.checkoutTime,
-        durationMinutes: absence.durationMinutes,
         reason: null,
       };
     }
@@ -83,7 +78,6 @@ export async function GET(request: NextRequest) {
         status: "izin" as const,
         checkinTime: null,
         checkoutTime: null,
-        durationMinutes: null,
         reason: leaveReason,
       };
     }
@@ -93,7 +87,6 @@ export async function GET(request: NextRequest) {
       status: "alpha" as const,
       checkinTime: null,
       checkoutTime: null,
-      durationMinutes: null,
       reason: null,
     };
   });

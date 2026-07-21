@@ -17,7 +17,6 @@ type DailyEmployee = {
   status: DailyStatus;
   checkinTime: string | null;
   checkoutTime: string | null;
-  durationMinutes: number | null;
   reason: string | null;
 };
 
@@ -28,13 +27,6 @@ type DailyData = {
 
 function todayISODate(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function formatDuration(minutes: number | null): string {
-  if (minutes == null) return "-";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}j ${m}m`;
 }
 
 function formatTime(iso: string | null): string {
@@ -141,7 +133,6 @@ export function DailyReportView() {
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Checkin</th>
                   <th className="px-5 py-3">Checkout</th>
-                  <th className="px-5 py-3">Durasi</th>
                   <th className="px-5 py-3">Keterangan</th>
                 </tr>
               </thead>
@@ -157,7 +148,6 @@ export function DailyReportView() {
                     <td className="px-5 py-3">{statusBadge(emp.status)}</td>
                     <td className="px-5 py-3 text-slate-600">{formatTime(emp.checkinTime)}</td>
                     <td className="px-5 py-3 text-slate-600">{formatTime(emp.checkoutTime)}</td>
-                    <td className="px-5 py-3 text-slate-600">{formatDuration(emp.durationMinutes)}</td>
                     <td className="px-5 py-3 text-slate-500">{emp.reason ?? "-"}</td>
                   </tr>
                 ))}

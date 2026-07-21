@@ -219,6 +219,12 @@ User minta ada tombol cancel absen di step preview (foto sudah diambil, belum di
 `AbsenPanel.tsx` — baris tombol bawah di step `preview` sekarang 3 tombol: **Batal** (icon `X` polos, panggil `handleCancel` yang sudah ada — stop kamera/stream, buang preview, balik ke `step="idle"`), **Ambil Ulang** (icon `RotateCcw`), **Kirim Check-in/Checkout** (tombol utama). Batal & Ambil Ulang di-render sebagai **tombol bulat icon-only** (`h-12 w-12`, tanpa label teks, `aria-label` untuk aksesibilitas) — bukan pill dengan teks seperti sebelumnya, supaya 3 tombol muat rapi di layar sempit tanpa wrap/overflow (Kirim tetap pill teks lengkap sebagai CTA utama yang paling menonjol).
 Verifikasi: `npm run build` sukses, `npx eslint`/`npx tsc --noEmit` bersih.
 
+## Fitur: Toggle Kamera Depan/Belakang saat Check-in/Checkout (2026-07-21)
+User minta bisa pakai kamera belakang juga (sebelumnya hardcode `facingMode: "user"` alias kamera depan saja).
+`AbsenPanel.tsx` — state baru `facingMode` (`"user" | "environment"`, default `"user"` — tetap selfie sebagai default karena itu kebutuhan utama absen). Tombol baru **"Ganti Kamera"** (icon `SwitchCamera` dari lucide-react) di overlay step `camera`, menggantikan spacer kosong di sisi kanan tombol capture. `switchCamera()` (BARU) **hanya** minta ulang `getUserMedia` dengan `facingMode` yang ditoggle — **tidak** request ulang Geolocation (lokasi yang sudah didapat di `startCamera()` dipertahankan), pakai pola cancellation token (`startTokenRef`) yang sama seperti `startCamera()`/`handleRetake()` supaya aman dari race kalau user klik cepat berturut-turut atau ganti kamera lalu langsung batal.
+`startCamera()` sekarang baca `facingMode` dari state (bukan hardcode `"user"`) — jadi kalau user retake setelah switch ke kamera belakang, kamera belakang yang dipakai lagi (state persist lintas retake dalam satu sesi buka panel, reset ke `"user"` lagi kalau komponen di-remount/reload halaman).
+Verifikasi: `npx tsc --noEmit` bersih, `npx eslint src/components/AbsenPanel.tsx` bersih. **Belum dilakukan**: test manual di HP sungguhan (kamera belakang benar-benar aktif, watermark & crop potret tetap benar dari kamera belakang, switch tidak nge-hang).
+
 ## Links
 - Lihat `progress.md` untuk breakdown fase & checklist lengkap.
 - Dokumen sumber detail: `docs/tech-stack.md`, `docs/features.md`, `docs/database-schema.md`, `docs/cloudinary-schema.md`.

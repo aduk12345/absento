@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Camera, Loader2, X, RotateCcw, MapPin, Send } from "lucide-react";
+import { Camera, Loader2, X, RotateCcw, MapPin, Send, SwitchCamera } from "lucide-react";
 import { getGeolocationErrorMessage } from "@/lib/geolocation";
 import { isSameJakartaDay } from "@/lib/date";
 import { drawAbsenceWatermark } from "@/lib/watermark";
@@ -76,6 +76,9 @@ export function AbsenPanel({
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
+  // Default depan (selfie, sesuai kebutuhan absen) — bisa ditukar ke belakang lewat
+  // tombol switch di step "camera", dipertahankan lintas retake/cancel dalam sesi ini.
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -138,7 +141,7 @@ export function AbsenPanel({
           // Minta orientasi potret ke device — beberapa browser/webcam desktop tetap
           // kirim landscape terlepas dari ini, makanya hasil capture tetap di-crop
           // paksa ke rasio potret di handleCapture() (lihat cropToPortrait()).
-          video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 } },
+          video: { facingMode, width: { ideal: 720 }, height: { ideal: 1280 } },
         }),
         getLocation(),
       ]);
@@ -162,6 +165,36 @@ export function AbsenPanel({
       if (startTokenRef.current !== token) return;
       setError((e as Error).message ?? "Gagal mengakses kamera. Berikan izin kamera untuk melanjutkan.");
       setStep("idle");
+      setCameraLoading(false);
+    }
+  }
+
+  async function switchCamera() {
+    // Cuma ganti stream video (kamera depan/belakang) — lokasi yang sudah didapat
+    // di startCamera() dipertahankan, tidak perlu request ulang GPS.
+    const nextFacingMode = facingMode === "user" ? "environment" : "user";
+    const token = ++startTokenRef.current;
+
+    stopCamera();
+    setCameraLoading(true);
+    setFacingMode(nextFacingMode);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: nextFacingMode, width: { ideal: 720 }, height: { ideal: 1280 } },
+      });
+
+      if (startTokenRef.current !== token) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setCameraLoading(false);
+    } catch (e) {
+      if (startTokenRef.current !== token) return;
+      setError((e as Error).message ?? "Gagal mengganti kamera.");
       setCameraLoading(false);
     }
   }
@@ -309,7 +342,15 @@ export function AbsenPanel({
             >
               <Camera size={30} strokeWidth={2.25} className="text-indigo-600" />
             </button>
-            <span className="h-14 w-14" />
+            <button
+              type="button"
+              onClick={switchCamera}
+              disabled={cameraLoading}
+              aria-label="Ganti Kamera"
+              className="flex h-14 w-14 items-center justify-center rounded-full border border-white/40 text-white active:scale-95 disabled:opacity-40"
+            >
+              <SwitchCamera size={22} strokeWidth={2.25} />
+            </button>
           </div>
         </div>
       )}

@@ -4,13 +4,6 @@ import { getAdminDb } from "@/lib/firebase-admin";
 import { getSession, isAdminSession } from "@/lib/session";
 import { startOfJakartaDayUtc, endOfJakartaDayUtc, formatJakartaTimeId } from "@/lib/date";
 
-function formatDuration(minutes: number | null): string {
-  if (minutes == null) return "-";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}j ${m}m`;
-}
-
 const STATUS_LABEL = { hadir: "Hadir", izin: "Izin", alpha: "Alpha" };
 
 // docs/features.md — Export Excel untuk Report Per Hari (Seluruh Karyawan).
@@ -42,18 +35,14 @@ export async function GET(request: NextRequest) {
 
   const absenceByEmployee = new Map<
     string,
-    { checkinTime: string; checkoutTime: string | null; durationMinutes: number | null }
+    { checkinTime: string; checkoutTime: string | null }
   >();
   for (const doc of absencesSnap.docs) {
     const data = doc.data();
     const checkinTime: string = data.checkinTime;
     const checkoutTime: string | null = data.checkoutTime ?? null;
-    const durationMinutes =
-      checkoutTime != null
-        ? Math.round((new Date(checkoutTime).getTime() - new Date(checkinTime).getTime()) / 60000)
-        : null;
     if (!absenceByEmployee.has(data.employeeId)) {
-      absenceByEmployee.set(data.employeeId, { checkinTime, checkoutTime, durationMinutes });
+      absenceByEmployee.set(data.employeeId, { checkinTime, checkoutTime });
     }
   }
 
@@ -73,7 +62,6 @@ export async function GET(request: NextRequest) {
     { header: "Status", key: "status", width: 12 },
     { header: "Checkin", key: "checkin", width: 12 },
     { header: "Checkout", key: "checkout", width: 12 },
-    { header: "Durasi", key: "durasi", width: 12 },
     { header: "Keterangan", key: "keterangan", width: 24 },
   ];
 
@@ -115,7 +103,6 @@ export async function GET(request: NextRequest) {
         checkout: row.absence!.checkoutTime
           ? formatJakartaTimeId(new Date(row.absence!.checkoutTime))
           : "-",
-        durasi: formatDuration(row.absence!.durationMinutes),
         keterangan: "-",
       });
     } else if (row.status === "izin") {
@@ -124,7 +111,6 @@ export async function GET(request: NextRequest) {
         status: STATUS_LABEL.izin,
         checkin: "-",
         checkout: "-",
-        durasi: "-",
         keterangan: row.reason,
       });
     } else {
@@ -133,7 +119,6 @@ export async function GET(request: NextRequest) {
         status: STATUS_LABEL.alpha,
         checkin: "-",
         checkout: "-",
-        durasi: "-",
         keterangan: "-",
       });
     }
