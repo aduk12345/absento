@@ -36,7 +36,14 @@ export async function GET(request: NextRequest) {
 
   const absenceByEmployee = new Map<
     string,
-    { checkinTime: string; checkoutTime: string | null }
+    {
+      checkinTime: string;
+      checkinLocation: { lat: number; lng: number } | null;
+      checkinPhotoUrl: string | null;
+      checkoutTime: string | null;
+      checkoutLocation: { lat: number; lng: number } | null;
+      checkoutPhotoUrl: string | null;
+    }
   >();
   for (const doc of absencesSnap.docs) {
     const data = doc.data();
@@ -45,7 +52,14 @@ export async function GET(request: NextRequest) {
     // Karyawan seharusnya cuma punya 1 siklus checkin/checkout per hari — kalau ada lebih,
     // pakai yang paling awal (record pertama ditemukan cukup untuk ringkasan status per-hari).
     if (!absenceByEmployee.has(data.employeeId)) {
-      absenceByEmployee.set(data.employeeId, { checkinTime, checkoutTime });
+      absenceByEmployee.set(data.employeeId, {
+        checkinTime,
+        checkinLocation: data.checkinLocation ?? null,
+        checkinPhotoUrl: data.checkinPhotoUrl ?? null,
+        checkoutTime,
+        checkoutLocation: data.checkoutLocation ?? null,
+        checkoutPhotoUrl: data.checkoutPhotoUrl ?? null,
+      });
     }
   }
 
@@ -66,7 +80,11 @@ export async function GET(request: NextRequest) {
         name,
         status: "hadir" as const,
         checkinTime: absence.checkinTime,
+        checkinLocation: absence.checkinLocation,
+        checkinPhotoUrl: absence.checkinPhotoUrl,
         checkoutTime: absence.checkoutTime,
+        checkoutLocation: absence.checkoutLocation,
+        checkoutPhotoUrl: absence.checkoutPhotoUrl,
         reason: null,
       };
     }
@@ -77,7 +95,11 @@ export async function GET(request: NextRequest) {
         name,
         status: "izin" as const,
         checkinTime: null,
+        checkinLocation: null,
+        checkinPhotoUrl: null,
         checkoutTime: null,
+        checkoutLocation: null,
+        checkoutPhotoUrl: null,
         reason: leaveReason,
       };
     }
@@ -86,7 +108,11 @@ export async function GET(request: NextRequest) {
       name,
       status: "alpha" as const,
       checkinTime: null,
+      checkinLocation: null,
+      checkinPhotoUrl: null,
       checkoutTime: null,
+      checkoutLocation: null,
+      checkoutPhotoUrl: null,
       reason: null,
     };
   });

@@ -6,6 +6,13 @@ import { startOfJakartaDayUtc, endOfJakartaDayUtc, formatJakartaTimeId } from "@
 
 const STATUS_LABEL = { hadir: "Hadir", izin: "Izin", alpha: "Alpha" };
 
+function mapsLink(loc: { lat: number; lng: number } | null | undefined): string | null {
+  if (!loc) return null;
+  return `https://www.google.com/maps?q=${loc.lat},${loc.lng}`;
+}
+
+const HYPERLINK_FONT = { color: { argb: "FF2563EB" }, underline: true };
+
 // docs/features.md — Export Excel untuk Report Per Hari (Seluruh Karyawan).
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -35,14 +42,28 @@ export async function GET(request: NextRequest) {
 
   const absenceByEmployee = new Map<
     string,
-    { checkinTime: string; checkoutTime: string | null }
+    {
+      checkinTime: string;
+      checkinLocation: { lat: number; lng: number } | null;
+      checkinPhotoUrl: string | null;
+      checkoutTime: string | null;
+      checkoutLocation: { lat: number; lng: number } | null;
+      checkoutPhotoUrl: string | null;
+    }
   >();
   for (const doc of absencesSnap.docs) {
     const data = doc.data();
     const checkinTime: string = data.checkinTime;
     const checkoutTime: string | null = data.checkoutTime ?? null;
     if (!absenceByEmployee.has(data.employeeId)) {
-      absenceByEmployee.set(data.employeeId, { checkinTime, checkoutTime });
+      absenceByEmployee.set(data.employeeId, {
+        checkinTime,
+        checkinLocation: data.checkinLocation ?? null,
+        checkinPhotoUrl: data.checkinPhotoUrl ?? null,
+        checkoutTime,
+        checkoutLocation: data.checkoutLocation ?? null,
+        checkoutPhotoUrl: data.checkoutPhotoUrl ?? null,
+      });
     }
   }
 
@@ -62,6 +83,10 @@ export async function GET(request: NextRequest) {
     { header: "Status", key: "status", width: 12 },
     { header: "Checkin", key: "checkin", width: 12 },
     { header: "Checkout", key: "checkout", width: 12 },
+    { header: "Foto Checkin", key: "fotoCheckin", width: 16 },
+    { header: "Foto Checkout", key: "fotoCheckout", width: 16 },
+    { header: "Lokasi Checkin", key: "lokasiCheckin", width: 16 },
+    { header: "Lokasi Checkout", key: "lokasiCheckout", width: 16 },
     { header: "Keterangan", key: "keterangan", width: 24 },
   ];
 
@@ -94,33 +119,62 @@ export async function GET(request: NextRequest) {
       return a.name.localeCompare(b.name);
     });
 
+  const LINK_KEYS = ["fotoCheckin", "fotoCheckout", "lokasiCheckin", "lokasiCheckout"] as const;
+
   for (const row of rows) {
+    let excelRow;
     if (row.status === "hadir") {
-      sheet.addRow({
+      const absence = row.absence!;
+      excelRow = sheet.addRow({
         nama: row.name,
         status: STATUS_LABEL.hadir,
-        checkin: formatJakartaTimeId(new Date(row.absence!.checkinTime)),
-        checkout: row.absence!.checkoutTime
-          ? formatJakartaTimeId(new Date(row.absence!.checkoutTime))
+        checkin: formatJakartaTimeId(new Date(absence.checkinTime)),
+        checkout: absence.checkoutTime ? formatJakartaTimeId(new Date(absence.checkoutTime)) : "-",
+        fotoCheckin: absence.checkinPhotoUrl
+          ? { text: "Lihat Foto", hyperlink: absence.checkinPhotoUrl }
+          : "-",
+        fotoCheckout: absence.checkoutPhotoUrl
+          ? { text: "Lihat Foto", hyperlink: absence.checkoutPhotoUrl }
+          : "-",
+        lokasiCheckin: mapsLink(absence.checkinLocation)
+          ? { text: "Lihat Lokasi", hyperlink: mapsLink(absence.checkinLocation)! }
+          : "-",
+        lokasiCheckout: mapsLink(absence.checkoutLocation)
+          ? { text: "Lihat Lokasi", hyperlink: mapsLink(absence.checkoutLocation)! }
           : "-",
         keterangan: "-",
       });
     } else if (row.status === "izin") {
-      sheet.addRow({
+      excelRow = sheet.addRow({
         nama: row.name,
         status: STATUS_LABEL.izin,
         checkin: "-",
         checkout: "-",
+        fotoCheckin: "-",
+        fotoCheckout: "-",
+        lokasiCheckin: "-",
+        lokasiCheckout: "-",
         keterangan: row.reason,
       });
     } else {
-      sheet.addRow({
+      excelRow = sheet.addRow({
         nama: row.name,
         status: STATUS_LABEL.alpha,
         checkin: "-",
         checkout: "-",
+        fotoCheckin: "-",
+        fotoCheckout: "-",
+        lokasiCheckin: "-",
+        lokasiCheckout: "-",
         keterangan: "-",
       });
+    }
+
+    for (const key of LINK_KEYS) {
+      const cell = excelRow.getCell(key);
+      if (cell.value && typeof cell.value === "object" && "hyperlink" in cell.value) {
+        cell.font = HYPERLINK_FONT;
+      }
     }
   }
 

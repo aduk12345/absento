@@ -13,6 +13,13 @@ import {
 
 const MAX_RANGE_DAYS = 31;
 
+function mapsLink(loc: { lat: number; lng: number } | null | undefined): string | null {
+  if (!loc) return null;
+  return `https://www.google.com/maps?q=${loc.lat},${loc.lng}`;
+}
+
+const HYPERLINK_FONT = { color: { argb: "FF2563EB" }, underline: true };
+
 // docs/features.md — Report: tombol Export Excel, format .xlsx.
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -71,6 +78,10 @@ export async function GET(request: NextRequest) {
     { header: "Status", key: "status", width: 12 },
     { header: "Checkin", key: "checkin", width: 12 },
     { header: "Checkout", key: "checkout", width: 12 },
+    { header: "Foto Checkin", key: "fotoCheckin", width: 16 },
+    { header: "Foto Checkout", key: "fotoCheckout", width: 16 },
+    { header: "Lokasi Checkin", key: "lokasiCheckin", width: 16 },
+    { header: "Lokasi Checkout", key: "lokasiCheckout", width: 16 },
     { header: "Keterangan", key: "keterangan", width: 24 },
   ];
 
@@ -84,21 +95,43 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  type ExportRow = { date: string; tanggal: string; status: string; checkin: string; checkout: string; keterangan: string };
+  type CellLink = string | { text: string; hyperlink: string };
+  type ExportRow = {
+    date: string;
+    tanggal: string;
+    status: string;
+    checkin: string;
+    checkout: string;
+    fotoCheckin: CellLink;
+    fotoCheckout: CellLink;
+    lokasiCheckin: CellLink;
+    lokasiCheckout: CellLink;
+    keterangan: string;
+  };
   const rows: ExportRow[] = [];
 
   snap.docs.forEach((doc) => {
     const data = doc.data();
     const checkinTime: string = data.checkinTime;
     const checkoutTime: string | null = data.checkoutTime ?? null;
+    const checkinLocation: { lat: number; lng: number } | null = data.checkinLocation ?? null;
+    const checkoutLocation: { lat: number; lng: number } | null = data.checkoutLocation ?? null;
+    const checkinPhotoUrl: string | null = data.checkinPhotoUrl ?? null;
+    const checkoutPhotoUrl: string | null = data.checkoutPhotoUrl ?? null;
 
     const checkinDate = new Date(checkinTime);
+    const checkinMapsLink = mapsLink(checkinLocation);
+    const checkoutMapsLink = mapsLink(checkoutLocation);
     rows.push({
       date: jakartaDateString(checkinDate),
       tanggal: formatJakartaDateId(checkinDate),
       status: "Hadir",
       checkin: formatJakartaTimeId(checkinDate),
       checkout: checkoutTime ? formatJakartaTimeId(new Date(checkoutTime)) : "-",
+      fotoCheckin: checkinPhotoUrl ? { text: "Lihat Foto", hyperlink: checkinPhotoUrl } : "-",
+      fotoCheckout: checkoutPhotoUrl ? { text: "Lihat Foto", hyperlink: checkoutPhotoUrl } : "-",
+      lokasiCheckin: checkinMapsLink ? { text: "Lihat Lokasi", hyperlink: checkinMapsLink } : "-",
+      lokasiCheckout: checkoutMapsLink ? { text: "Lihat Lokasi", hyperlink: checkoutMapsLink } : "-",
       keterangan: data.reason ?? "-",
     });
   });
@@ -117,6 +150,10 @@ export async function GET(request: NextRequest) {
         status: "Izin",
         checkin: "-",
         checkout: "-",
+        fotoCheckin: "-",
+        fotoCheckout: "-",
+        lokasiCheckin: "-",
+        lokasiCheckout: "-",
         keterangan: leave.reason,
       });
       cursor.setUTCDate(cursor.getUTCDate() + 1);
@@ -124,7 +161,16 @@ export async function GET(request: NextRequest) {
   }
 
   rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-  rows.forEach((row) => sheet.addRow(row));
+  const LINK_KEYS = ["fotoCheckin", "fotoCheckout", "lokasiCheckin", "lokasiCheckout"] as const;
+  rows.forEach((row) => {
+    const excelRow = sheet.addRow(row);
+    for (const key of LINK_KEYS) {
+      const cell = excelRow.getCell(key);
+      if (cell.value && typeof cell.value === "object" && "hyperlink" in cell.value) {
+        cell.font = HYPERLINK_FONT;
+      }
+    }
+  });
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = `report-${employeeName.replace(/[^a-zA-Z0-9]+/g, "_")}-${startDate}-${endDate}.xlsx`;
