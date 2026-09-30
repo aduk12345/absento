@@ -660,6 +660,7 @@ export function AbsencesTable({
             record={detailAbsence}
             onZoom={setZoomPhoto}
             avatarName={detailAbsence.employeeName}
+            variant="photo"
           />
         </Modal>
       )}

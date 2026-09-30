@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { ExternalLink, ImageOff } from "lucide-react";
+import { ExternalLink, ImageOff, MapPin } from "lucide-react";
 
 // Leaflet butuh `window` — matikan SSR supaya tidak crash saat render di server.
 const LocationMap = dynamic(() => import("./LocationMap").then((m) => m.LocationMap), {
@@ -34,16 +34,24 @@ function formatTime(iso: string | null): string {
   return new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 }
 
+/**
+ * `variant`:
+ * - `"map"` (default, History karyawan): peta Leaflet + thumbnail foto kecil di pojok kanan.
+ * - `"photo"` (Manage Absence admin): foto check-in/checkout tampil besar menggantikan peta,
+ *   lokasi cukup sebagai link Google Maps (tanpa render peta, tanpa thumbnail pojok).
+ */
 export function AbsenceDetailContent({
   record: r,
   onZoom,
   avatarName,
   avatarPhotoUrl,
+  variant = "map",
 }: {
   record: AbsenceDetailRecord;
   onZoom: (url: string) => void;
   avatarName: string;
   avatarPhotoUrl?: string | null;
+  variant?: "map" | "photo";
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -56,6 +64,7 @@ export function AbsenceDetailContent({
         onZoom={onZoom}
         avatarName={avatarName}
         avatarPhotoUrl={avatarPhotoUrl}
+        variant={variant}
       />
       <LocationSection
         label="Checkout"
@@ -66,6 +75,7 @@ export function AbsenceDetailContent({
         onZoom={onZoom}
         avatarName={avatarName}
         avatarPhotoUrl={avatarPhotoUrl}
+        variant={variant}
       />
     </div>
   );
@@ -80,6 +90,7 @@ function LocationSection({
   onZoom,
   avatarName,
   avatarPhotoUrl,
+  variant,
 }: {
   label: string;
   time: string;
@@ -89,7 +100,53 @@ function LocationSection({
   onZoom: (url: string) => void;
   avatarName: string;
   avatarPhotoUrl?: string | null;
+  variant: "map" | "photo";
 }) {
+  if (variant === "photo") {
+    return (
+      <div>
+        <p className="mb-2 text-sm font-bold text-slate-900">
+          {label} <span className="font-normal text-slate-400">· {time}</span>
+        </p>
+
+        {photoUrl ? (
+          <button
+            type="button"
+            onClick={() => onZoom(photoUrl)}
+            title="Perbesar foto"
+            className="block w-full active:scale-[0.99]"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photoUrl}
+              alt={`Foto ${label}`}
+              className="max-h-72 w-full rounded-xl object-cover ring-1 ring-slate-200"
+            />
+          </button>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-1 rounded-xl bg-slate-50 py-8 text-slate-300 ring-1 ring-slate-100">
+            <ImageOff size={20} strokeWidth={2} />
+            <span className="text-xs font-medium">Tidak ada foto</span>
+          </div>
+        )}
+
+        {mapsUrl ? (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 flex w-fit items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"
+          >
+            <MapPin size={12} /> Lihat lokasi di Google Maps
+            <ExternalLink size={11} />
+          </a>
+        ) : (
+          <p className="mt-2 text-xs text-slate-400">Lokasi tidak tersedia.</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
