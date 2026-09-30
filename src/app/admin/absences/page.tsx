@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { getSession, isAdminSession } from "@/lib/session";
 import { PageHeader } from "@/components/ui/Card";
-import { AbsencesTable, type Absence, type EmployeeOption } from "@/components/AbsencesTable";
+import { AbsencesTable, type Absence } from "@/components/AbsencesTable";
 
 // docs/features.md — Manage Absence: koreksi timestamp, tambah manual (wajib alasan), hapus.
 // Foto & lokasi tidak bisa diedit. Setiap perubahan wajib tercatat di `absence_audit_logs`.
@@ -28,19 +28,10 @@ export default async function AdminAbsencesPage() {
     db.collection("employees").orderBy("name").get(),
   ]);
 
-  // Field selain id/name dipakai modal profil karyawan (klik avatar/nama di tabel).
-  const employees: EmployeeOption[] = employeesSnap.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      name: data.name as string,
-      photoUrl: data.photoUrl ?? null,
-      email: data.email ?? null,
-      username: data.username ?? null,
-      phone: data.phone ?? null,
-      status: (data.status ?? "active") as "active" | "inactive",
-    };
-  });
+  const employees = employeesSnap.docs.map((doc) => ({
+    id: doc.id,
+    name: doc.data().name as string,
+  }));
   const employeeNameById = new Map(employees.map((e) => [e.id, e.name]));
 
   const absences: Absence[] = absencesSnap.docs.map((doc) => {
@@ -51,6 +42,10 @@ export default async function AdminAbsencesPage() {
       employeeName: employeeNameById.get(data.employeeId) ?? "(tidak diketahui)",
       checkinTime: data.checkinTime ?? null,
       checkoutTime: data.checkoutTime ?? null,
+      checkinPhotoUrl: data.checkinPhotoUrl ?? null,
+      checkoutPhotoUrl: data.checkoutPhotoUrl ?? null,
+      checkinLocation: data.checkinLocation ?? null,
+      checkoutLocation: data.checkoutLocation ?? null,
       source: data.source,
       reason: data.reason ?? null,
       status: data.status ?? "complete",

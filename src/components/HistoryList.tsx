@@ -1,15 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-import { MapPin, ExternalLink, X, CalendarDays, CalendarOff, Inbox, ImageOff } from "lucide-react";
+import { MapPin, X, CalendarDays, CalendarOff, Inbox, ImageOff } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
-
-// Leaflet butuh `window` — matikan SSR supaya tidak crash saat render di server.
-const LocationMap = dynamic(() => import("./LocationMap").then((m) => m.LocationMap), {
-  ssr: false,
-});
+import { AbsenceDetailContent } from "@/components/AbsenceDetail";
 
 type HistoryRecord = {
   id: string;
@@ -63,11 +58,6 @@ function formatWeekdayShort(iso: string): string {
 
 function formatMonthShort(iso: string): string {
   return new Date(iso).toLocaleDateString("id-ID", { month: "short", year: "numeric" });
-}
-
-function mapsLink(loc: { lat: number; lng: number; accuracy?: number } | null): string | null {
-  if (!loc) return null;
-  return `https://www.google.com/maps?q=${loc.lat},${loc.lng}`;
 }
 
 function toDateInputValue(d: Date): string {
@@ -295,7 +285,7 @@ export function HistoryList({
 
       {selected && (
         <Modal title={formatDate(selected.checkinTime)} onClose={() => setSelected(null)}>
-          <DetailContent
+          <AbsenceDetailContent
             record={selected}
             onZoom={setZoomPhoto}
             avatarName={avatarName}
@@ -495,115 +485,5 @@ function PhotoThumb({
         {label}
       </span>
     </button>
-  );
-}
-
-function DetailContent({
-  record: r,
-  onZoom,
-  avatarName,
-  avatarPhotoUrl,
-}: {
-  record: HistoryRecord;
-  onZoom: (url: string) => void;
-  avatarName: string;
-  avatarPhotoUrl?: string | null;
-}) {
-  const checkinMaps = mapsLink(r.checkinLocation);
-  const checkoutMaps = mapsLink(r.checkoutLocation);
-
-  return (
-    <div className="flex flex-col gap-5">
-      <LocationSection
-        label="Check-in"
-        time={formatTime(r.checkinTime)}
-        photoUrl={r.checkinPhotoUrl}
-        location={r.checkinLocation}
-        mapsUrl={checkinMaps}
-        onZoom={onZoom}
-        avatarName={avatarName}
-        avatarPhotoUrl={avatarPhotoUrl}
-      />
-      <LocationSection
-        label="Checkout"
-        time={formatTime(r.checkoutTime)}
-        photoUrl={r.checkoutPhotoUrl}
-        location={r.checkoutLocation}
-        mapsUrl={checkoutMaps}
-        onZoom={onZoom}
-        avatarName={avatarName}
-        avatarPhotoUrl={avatarPhotoUrl}
-      />
-    </div>
-  );
-}
-
-function LocationSection({
-  label,
-  time,
-  photoUrl,
-  location,
-  mapsUrl,
-  onZoom,
-  avatarName,
-  avatarPhotoUrl,
-}: {
-  label: string;
-  time: string;
-  photoUrl: string | null;
-  location: { lat: number; lng: number; accuracy?: number } | null;
-  mapsUrl: string | null;
-  onZoom: (url: string) => void;
-  avatarName: string;
-  avatarPhotoUrl?: string | null;
-}) {
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-sm font-bold text-slate-900">
-          {label} <span className="font-normal text-slate-400">· {time}</span>
-        </p>
-        {photoUrl ? (
-          <button type="button" onClick={() => onZoom(photoUrl)} className="active:scale-95">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photoUrl}
-              alt={`Foto ${label}`}
-              className="h-10 w-10 rounded-lg object-cover ring-1 ring-slate-200"
-            />
-          </button>
-        ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-300">
-            <ImageOff size={15} strokeWidth={2} />
-          </div>
-        )}
-      </div>
-
-      {location ? (
-        <div className="flex flex-col gap-2">
-          <div className="overflow-hidden rounded-xl ring-1 ring-slate-200">
-            <LocationMap
-              lat={location.lat}
-              lng={location.lng}
-              accuracy={location.accuracy}
-              avatarName={avatarName}
-              avatarPhotoUrl={avatarPhotoUrl}
-            />
-          </div>
-          {mapsUrl && (
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex w-fit items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"
-            >
-              <ExternalLink size={12} /> Buka di Google Maps
-            </a>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-slate-400">Belum ada data ({label.toLowerCase()} belum dilakukan).</p>
-      )}
-    </div>
   );
 }

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
+import { AbsenceDetailContent, type AbsenceLocation } from "@/components/AbsenceDetail";
 
 const PAGE_SIZE = 10;
 
@@ -19,22 +20,13 @@ export type Absence = {
   employeeName: string;
   checkinTime: string | null;
   checkoutTime: string | null;
+  checkinPhotoUrl: string | null;
+  checkoutPhotoUrl: string | null;
+  checkinLocation: AbsenceLocation | null;
+  checkoutLocation: AbsenceLocation | null;
   source: "employee" | "admin";
   reason: string | null;
   status?: "complete" | "incomplete";
-};
-
-// Data karyawan yang dipakai dropdown "Tambah Absen Manual" sekaligus modal profil
-// (dibuka lewat klik avatar/nama di tabel). Field selain id/name opsional supaya
-// pemanggil lama tetap valid.
-export type EmployeeOption = {
-  id: string;
-  name: string;
-  photoUrl?: string | null;
-  email?: string | null;
-  username?: string | null;
-  phone?: string | null;
-  status?: "active" | "inactive";
 };
 
 const SELECT_CLASS =
@@ -74,7 +66,7 @@ export function AbsencesTable({
   defaultEndDate,
 }: {
   initialAbsences: Absence[];
-  employees: EmployeeOption[];
+  employees: { id: string; name: string }[];
   defaultStartDate: string;
   defaultEndDate: string;
 }) {
@@ -98,7 +90,10 @@ export function AbsencesTable({
   const [editForm, setEditForm] = useState({ checkinTime: "", checkoutTime: "", reason: "" });
   const [editError, setEditError] = useState<string | null>(null);
 
-  const [profileEmployee, setProfileEmployee] = useState<EmployeeOption | null>(null);
+  // Modal detail absen (dibuka dari klik avatar/nama karyawan di tabel) + lightbox zoom.
+  // Isinya pakai komponen bersama `AbsenceDetailContent` — sama persis dengan detail
+  // di History karyawan (foto + peta lokasi per check-in/checkout).
+  const [detailAbsence, setDetailAbsence] = useState<Absence | null>(null);
   const [zoomPhoto, setZoomPhoto] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
@@ -108,16 +103,6 @@ export function AbsencesTable({
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   );
-
-  const employeeById = new Map(employees.map((emp) => [emp.id, emp]));
-
-  // Karyawan bisa saja sudah dihapus dari master data tapi record absennya masih ada —
-  // fallback ke nama yang tersimpan di record supaya modal tetap bisa dibuka.
-  function openProfile(absence: Absence) {
-    setProfileEmployee(
-      employeeById.get(absence.employeeId) ?? { id: absence.employeeId, name: absence.employeeName }
-    );
-  }
 
   async function fetchAbsences(rangeStart: string, rangeEnd: string) {
     setFilterLoading(true);
@@ -196,6 +181,10 @@ export function AbsencesTable({
           employeeName,
           checkinTime: localInputToIso(addForm.checkinTime),
           checkoutTime: localInputToIso(addForm.checkoutTime),
+          checkinPhotoUrl: null,
+          checkoutPhotoUrl: null,
+          checkinLocation: null,
+          checkoutLocation: null,
           source: "admin",
           reason: addForm.reason,
         },
@@ -395,15 +384,11 @@ export function AbsencesTable({
                   <td className="px-5 py-3">
                     <button
                       type="button"
-                      onClick={() => openProfile(absence)}
-                      title="Lihat profil karyawan"
+                      onClick={() => setDetailAbsence(absence)}
+                      title="Lihat detail absen (foto & lokasi)"
                       className="flex items-center gap-2.5 text-left"
                     >
-                      <Avatar
-                        name={absence.employeeName}
-                        photoUrl={employeeById.get(absence.employeeId)?.photoUrl}
-                        size="sm"
-                      />
+                      <Avatar name={absence.employeeName} size="sm" />
                       <span className="font-semibold text-slate-900 hover:text-indigo-600 hover:underline">
                         {absence.employeeName}
                       </span>
@@ -530,14 +515,10 @@ export function AbsencesTable({
             <div className="flex items-start justify-between gap-3">
               <button
                 type="button"
-                onClick={() => openProfile(absence)}
+                onClick={() => setDetailAbsence(absence)}
                 className="flex items-center gap-2.5 text-left"
               >
-                <Avatar
-                  name={absence.employeeName}
-                  photoUrl={employeeById.get(absence.employeeId)?.photoUrl}
-                  size="sm"
-                />
+                <Avatar name={absence.employeeName} size="sm" />
                 <span className="font-semibold text-slate-900">{absence.employeeName}</span>
               </button>
               <Badge tone={absence.source === "admin" ? "orange" : "green"}>
@@ -645,80 +626,39 @@ export function AbsencesTable({
         )}
       </div>
 
-      {profileEmployee && (
-        <Modal title="Profil Karyawan" onClose={() => setProfileEmployee(null)}>
-          <div className="flex flex-col items-center gap-3 text-center">
-            {profileEmployee.photoUrl ? (
-              <button
-                type="button"
-                onClick={() => setZoomPhoto(profileEmployee.photoUrl!)}
-                title="Perbesar foto"
-                className="active:scale-95"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={profileEmployee.photoUrl}
-                  alt={profileEmployee.name}
-                  className="h-24 w-24 rounded-full object-cover ring-4 ring-slate-100"
-                />
-              </button>
-            ) : (
-              <Avatar name={profileEmployee.name} size="lg" />
-            )}
-            <div>
-              <p className="text-base font-bold text-slate-900">{profileEmployee.name}</p>
-              {profileEmployee.username && (
-                <p className="text-xs text-slate-400">@{profileEmployee.username}</p>
-              )}
-            </div>
-            {profileEmployee.status && (
-              <Badge tone={profileEmployee.status === "active" ? "green" : "zinc"}>
-                {profileEmployee.status === "active" ? "Aktif" : "Nonaktif"}
-              </Badge>
-            )}
-          </div>
-
-          <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm">
-            <div className="flex justify-between gap-3">
-              <span className="text-slate-400">Email</span>
-              <span className="text-right font-medium text-slate-700">
-                {profileEmployee.email || "-"}
-              </span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-slate-400">No. HP</span>
-              <span className="text-right font-medium text-slate-700">
-                {profileEmployee.phone || "-"}
-              </span>
-            </div>
-          </div>
-
-          {!profileEmployee.photoUrl && (
-            <p className="mt-3 text-center text-xs text-slate-400">
-              Karyawan ini belum punya foto profil.
-            </p>
-          )}
+      {detailAbsence && (
+        <Modal
+          title={`${detailAbsence.employeeName} — ${formatDateTime(
+            detailAbsence.checkinTime ?? detailAbsence.checkoutTime
+          )}`}
+          onClose={() => setDetailAbsence(null)}
+        >
+          <AbsenceDetailContent
+            record={detailAbsence}
+            onZoom={setZoomPhoto}
+            avatarName={detailAbsence.employeeName}
+          />
         </Modal>
       )}
 
       {zoomPhoto && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 p-6"
           onClick={() => setZoomPhoto(null)}
         >
           <button
             type="button"
             onClick={() => setZoomPhoto(null)}
             aria-label="Tutup foto"
-            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white"
+            className="absolute right-5 top-5 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
           >
-            <X size={20} />
+            <X size={22} />
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={zoomPhoto}
-            alt="Foto karyawan"
-            className="max-h-full max-w-full rounded-2xl object-contain"
+            alt="Foto absen"
+            className="max-h-full max-w-full rounded-xl object-contain"
           />
         </div>
       )}
