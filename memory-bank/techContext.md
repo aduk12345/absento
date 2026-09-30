@@ -77,3 +77,6 @@ JWT_SECRET=   # atau NEXTAUTH_SECRET kalau pakai NextAuth
 
 - Fitur kamera & lokasi butuh **HTTPS** (wajib juga untuk PWA) — tidak ada trade-off tambahan karena keduanya sama-sama butuh HTTPS.
 - Serverless function Next.js (mis. di Vercel) punya limit payload request (~4.5MB) — ini salah satu alasan foto upload langsung client→Cloudinary, tidak lewat API route Next.js.
+- **Deployment**: sudah live di Vercel, auto-deploy tiap `git push` (Vercel GitHub integration). Konfigurasi deploy hanya ada di dashboard Vercel, tidak di repo. Detail lengkap: `docs/deployment.md`.
+- Env var **tidak ikut ter-push** (`.gitignore` memblok `.env*`) — env var baru wajib ditambahkan di `.env.local` DAN di Vercel dashboard, kalau tidak deploy gagal/error runtime.
+- Server production Vercel jalan di **UTC**, bukan WIB — semua logika tanggal wajib lewat helper eksplisit di `src/lib/date.ts`, jangan andalkan timezone server.

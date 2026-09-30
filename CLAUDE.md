@@ -108,6 +108,7 @@ Detail keputusan & alasan arsitektur ada di `docs/`:
 - `docs/features.md`
 - `docs/database-schema.md`
 - `docs/cloudinary-schema.md`
+- `docs/deployment.md`
 
 ---
 *This CLAUDE.md was initialized by /cline-init command.*

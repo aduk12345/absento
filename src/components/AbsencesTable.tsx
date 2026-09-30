@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardPlus, Pencil, Trash2 } from "lucide-react";
+import { ClipboardPlus, Pencil, Trash2, X } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -22,6 +22,19 @@ export type Absence = {
   source: "employee" | "admin";
   reason: string | null;
   status?: "complete" | "incomplete";
+};
+
+// Data karyawan yang dipakai dropdown "Tambah Absen Manual" sekaligus modal profil
+// (dibuka lewat klik avatar/nama di tabel). Field selain id/name opsional supaya
+// pemanggil lama tetap valid.
+export type EmployeeOption = {
+  id: string;
+  name: string;
+  photoUrl?: string | null;
+  email?: string | null;
+  username?: string | null;
+  phone?: string | null;
+  status?: "active" | "inactive";
 };
 
 const SELECT_CLASS =
@@ -61,7 +74,7 @@ export function AbsencesTable({
   defaultEndDate,
 }: {
   initialAbsences: Absence[];
-  employees: { id: string; name: string }[];
+  employees: EmployeeOption[];
   defaultStartDate: string;
   defaultEndDate: string;
 }) {
@@ -85,6 +98,9 @@ export function AbsencesTable({
   const [editForm, setEditForm] = useState({ checkinTime: "", checkoutTime: "", reason: "" });
   const [editError, setEditError] = useState<string | null>(null);
 
+  const [profileEmployee, setProfileEmployee] = useState<EmployeeOption | null>(null);
+  const [zoomPhoto, setZoomPhoto] = useState<string | null>(null);
+
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(absences.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -92,6 +108,16 @@ export function AbsencesTable({
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   );
+
+  const employeeById = new Map(employees.map((emp) => [emp.id, emp]));
+
+  // Karyawan bisa saja sudah dihapus dari master data tapi record absennya masih ada —
+  // fallback ke nama yang tersimpan di record supaya modal tetap bisa dibuka.
+  function openProfile(absence: Absence) {
+    setProfileEmployee(
+      employeeById.get(absence.employeeId) ?? { id: absence.employeeId, name: absence.employeeName }
+    );
+  }
 
   async function fetchAbsences(rangeStart: string, rangeEnd: string) {
     setFilterLoading(true);
@@ -367,10 +393,21 @@ export function AbsencesTable({
                   className="border-b border-slate-50 align-top last:border-0 hover:bg-slate-50/60"
                 >
                   <td className="px-5 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar name={absence.employeeName} size="sm" />
-                      <span className="font-semibold text-slate-900">{absence.employeeName}</span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openProfile(absence)}
+                      title="Lihat profil karyawan"
+                      className="flex items-center gap-2.5 text-left"
+                    >
+                      <Avatar
+                        name={absence.employeeName}
+                        photoUrl={employeeById.get(absence.employeeId)?.photoUrl}
+                        size="sm"
+                      />
+                      <span className="font-semibold text-slate-900 hover:text-indigo-600 hover:underline">
+                        {absence.employeeName}
+                      </span>
+                    </button>
                   </td>
                   {editingId === absence.id ? (
                     <>
@@ -491,10 +528,18 @@ export function AbsencesTable({
         {paginatedAbsences.map((absence) => (
           <Card key={absence.id} className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <Avatar name={absence.employeeName} size="sm" />
+              <button
+                type="button"
+                onClick={() => openProfile(absence)}
+                className="flex items-center gap-2.5 text-left"
+              >
+                <Avatar
+                  name={absence.employeeName}
+                  photoUrl={employeeById.get(absence.employeeId)?.photoUrl}
+                  size="sm"
+                />
                 <span className="font-semibold text-slate-900">{absence.employeeName}</span>
-              </div>
+              </button>
               <Badge tone={absence.source === "admin" ? "orange" : "green"}>
                 {absence.source === "admin" ? "Admin" : "Karyawan"}
               </Badge>
@@ -599,6 +644,84 @@ export function AbsencesTable({
           <Card className="py-8 text-center text-sm text-slate-400">Belum ada record absen.</Card>
         )}
       </div>
+
+      {profileEmployee && (
+        <Modal title="Profil Karyawan" onClose={() => setProfileEmployee(null)}>
+          <div className="flex flex-col items-center gap-3 text-center">
+            {profileEmployee.photoUrl ? (
+              <button
+                type="button"
+                onClick={() => setZoomPhoto(profileEmployee.photoUrl!)}
+                title="Perbesar foto"
+                className="active:scale-95"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={profileEmployee.photoUrl}
+                  alt={profileEmployee.name}
+                  className="h-24 w-24 rounded-full object-cover ring-4 ring-slate-100"
+                />
+              </button>
+            ) : (
+              <Avatar name={profileEmployee.name} size="lg" />
+            )}
+            <div>
+              <p className="text-base font-bold text-slate-900">{profileEmployee.name}</p>
+              {profileEmployee.username && (
+                <p className="text-xs text-slate-400">@{profileEmployee.username}</p>
+              )}
+            </div>
+            {profileEmployee.status && (
+              <Badge tone={profileEmployee.status === "active" ? "green" : "zinc"}>
+                {profileEmployee.status === "active" ? "Aktif" : "Nonaktif"}
+              </Badge>
+            )}
+          </div>
+
+          <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm">
+            <div className="flex justify-between gap-3">
+              <span className="text-slate-400">Email</span>
+              <span className="text-right font-medium text-slate-700">
+                {profileEmployee.email || "-"}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-slate-400">No. HP</span>
+              <span className="text-right font-medium text-slate-700">
+                {profileEmployee.phone || "-"}
+              </span>
+            </div>
+          </div>
+
+          {!profileEmployee.photoUrl && (
+            <p className="mt-3 text-center text-xs text-slate-400">
+              Karyawan ini belum punya foto profil.
+            </p>
+          )}
+        </Modal>
+      )}
+
+      {zoomPhoto && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 p-4"
+          onClick={() => setZoomPhoto(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setZoomPhoto(null)}
+            aria-label="Tutup foto"
+            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white"
+          >
+            <X size={20} />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={zoomPhoto}
+            alt="Foto karyawan"
+            className="max-h-full max-w-full rounded-2xl object-contain"
+          />
+        </div>
+      )}
 
       <Pagination
         page={currentPage}

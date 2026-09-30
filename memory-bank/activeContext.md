@@ -236,6 +236,25 @@ User minta 2 hal: (1) tabel Report Harian (`DailyReportView.tsx`, tab "Rekap Har
 - Verifikasi: `npx tsc --noEmit` bersih, `npx eslint` bersih (4 file yang diubah), `npm run build` sukses (38 route, 0 error).
 - **Belum dilakukan**: test manual buka file Excel hasil export di Excel/Sheets sungguhan untuk konfirmasi link foto/lokasi benar-benar clickable dan mengarah ke URL yang tepat; test tabel Report Harian di browser (klik tombol foto/lokasi, modal & lightbox tampil benar).
 
+## Deployment: sudah live di Vercel via auto-deploy (didokumentasikan 2026-09-30)
+Fakta penting yang sebelumnya **tidak tercatat di memory bank mana pun** sehingga sesi berikutnya salah menyimpulkan project belum pernah dideploy: aplikasi **sudah production di Vercel**, dan deploy berjalan **otomatis tiap `git push`** lewat Vercel GitHub integration (repo `aduk12345/absento`).
+
+- Setup deploy **tidak meninggalkan jejak di repo** — tidak ada `vercel.json`, `Dockerfile`, `.github/workflows/`, maupun `.vercel/` (working copy belum pernah `vercel link`, Vercel CLI juga belum terinstall). Semua konfigurasi (env var, production branch, domain, build setting) ada di **dashboard Vercel**. Ini sebabnya tidak ketemu saat grep repo.
+- **`dev` dan `main` menunjuk commit yang identik** (lokal & remote), `master` basi di `Initial commit`. Jadi tidak ada pemisahan staging/production di level git: **push = langsung live**, tanpa tahap review. Kalau mau rem: set production branch Vercel ke `main`, kerja di `dev` (dapat preview URL), promote lewat merge `dev` → `main`.
+- **Pola wajib kalau menambah env var baru**: tambahkan di **dua** tempat — `.env.local` (dev) DAN Vercel dashboard (Settings → Environment Variables). `.gitignore` memblok `.env*` jadi env tidak pernah ter-push; lupa yang kedua = deploy gagal build atau error runtime. Saat ini 7 env var dipakai, semuanya server-side (tidak ada `NEXT_PUBLIC_*`).
+- Dokumentasi lengkap dibuat di **`docs/deployment.md`** (cara deploy, kondisi branch, env var, hal yang cuma bisa diuji di production, technical debt yang terbawa, dan daftar info yang masih perlu konfirmasi pemegang akun Vercel).
+- **Belum diketahui** (perlu konfirmasi user/pemegang akun): URL production, branch mana yang diset production di Vercel, ada/tidaknya preview deployment yang pakai env `.env.dev.local`, dan akun/team Vercel pemegang project.
+
+## Fitur: Lihat Profil & Foto Karyawan dari Manage Absence (2026-09-30)
+User minta di halaman admin Manage Absence, klik ikon/avatar karyawan bisa lihat profil + foto karyawan (sebelumnya avatar cuma dekorasi inisial, tidak klikable, dan `employees.photoUrl` sama sekali tidak dipakai di halaman admin mana pun).
+
+- **`src/app/admin/absences/page.tsx`**: list `employees` yang dikirim ke tabel tidak lagi cuma `{id, name}` — sekarang bawa `photoUrl`, `email`, `username`, `phone`, `status` (tipe baru `EmployeeOption` diekspor dari `AbsencesTable.tsx`). Field ini murni untuk modal profil; dropdown "Tambah Absen Manual" tetap pakai `id`/`name` saja.
+- **`src/components/AbsencesTable.tsx`**: avatar+nama di tabel desktop dan card mobile jadi `<button>` → `openProfile(absence)` membuka `Modal` "Profil Karyawan" (foto besar 24x24 klikable untuk zoom lightbox, fallback `Avatar` inisial kalau `photoUrl` null + catatan "belum punya foto profil", plus username/email/no. HP/badge status). Avatar di baris tabel juga sekarang menampilkan `photoUrl` kalau ada.
+- `openProfile` fallback ke `{id, name: absence.employeeName}` kalau `employeeId` tidak ada di master `employees` (karyawan sudah dihapus tapi record absennya masih ada) — modal tetap bisa dibuka, field lain tampil `-`.
+- **Catatan penting**: belum ada UI upload foto profil karyawan di mana pun (`employees.photoUrl` hanya bisa diisi lewat API `POST/PATCH /api/employees` atau manual di Firestore) — jadi di data sekarang modal kemungkinan besar menampilkan avatar inisial, bukan foto. Kalau user mau foto sungguhan muncul, langkah berikutnya adalah menambah field upload foto di Manage Karyawan (pola upload Cloudinary signed sudah ada di `AbsenPanel.tsx`).
+- Verifikasi: `npx tsc --noEmit` bersih, `npx eslint` bersih untuk kedua file. `npm run build` **gagal di tahap "Running TypeScript" dengan `uncaughtException TypeError: Unexpected response from worker: undefined`** — dikonfirmasi ini **pre-existing** (gagal sama persis di working tree bersih via `git stash`), bukan akibat perubahan ini; kemungkinan masalah worker Next 16.2.10 di environment ini. Perlu dicek terpisah.
+- **Belum dilakukan**: test manual di browser (klik avatar di tabel & card mobile, modal tampil benar, zoom foto jalan untuk karyawan yang punya `photoUrl`).
+
 ## Links
 - Lihat `progress.md` untuk breakdown fase & checklist lengkap.
-- Dokumen sumber detail: `docs/tech-stack.md`, `docs/features.md`, `docs/database-schema.md`, `docs/cloudinary-schema.md`.
+- Dokumen sumber detail: `docs/tech-stack.md`, `docs/features.md`, `docs/database-schema.md`, `docs/cloudinary-schema.md`, `docs/deployment.md`.
