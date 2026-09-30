@@ -379,20 +379,19 @@ export function AbsencesTable({
               {paginatedAbsences.map((absence) => (
                 <tr
                   key={absence.id}
-                  className="border-b border-slate-50 align-top last:border-0 hover:bg-slate-50/60"
+                  onClick={() => {
+                    if (editingId !== absence.id) setDetailAbsence(absence);
+                  }}
+                  title={editingId === absence.id ? undefined : "Lihat detail absen (foto & lokasi)"}
+                  className={`border-b border-slate-50 align-top last:border-0 hover:bg-slate-50/60 ${
+                    editingId === absence.id ? "" : "cursor-pointer"
+                  }`}
                 >
                   <td className="px-5 py-3">
-                    <button
-                      type="button"
-                      onClick={() => setDetailAbsence(absence)}
-                      title="Lihat detail absen (foto & lokasi)"
-                      className="flex items-center gap-2.5 text-left"
-                    >
+                    <div className="flex items-center gap-2.5">
                       <Avatar name={absence.employeeName} size="sm" />
-                      <span className="font-semibold text-slate-900 hover:text-indigo-600 hover:underline">
-                        {absence.employeeName}
-                      </span>
-                    </button>
+                      <span className="font-semibold text-slate-900">{absence.employeeName}</span>
+                    </div>
                   </td>
                   {editingId === absence.id ? (
                     <>
@@ -441,7 +440,10 @@ export function AbsencesTable({
                             variant="primary"
                             className="px-3 py-1.5 text-xs"
                             disabled={loading}
-                            onClick={() => handleSaveEdit(absence)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSaveEdit(absence);
+                            }}
                           >
                             Simpan
                           </Button>
@@ -449,7 +451,10 @@ export function AbsencesTable({
                             type="button"
                             variant="ghost"
                             className="px-3 py-1.5 text-xs"
-                            onClick={() => setEditingId(null)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingId(null);
+                            }}
                           >
                             Batal
                           </Button>
@@ -477,7 +482,10 @@ export function AbsencesTable({
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={() => startEdit(absence)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startEdit(absence);
+                            }}
                             className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline"
                           >
                             <Pencil size={13} />
@@ -485,7 +493,10 @@ export function AbsencesTable({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDelete(absence)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(absence);
+                            }}
                             className="flex items-center gap-1 text-xs font-semibold text-rose-600 hover:underline"
                           >
                             <Trash2 size={13} />
@@ -511,16 +522,16 @@ export function AbsencesTable({
 
       <div className="flex flex-col gap-3 lg:hidden">
         {paginatedAbsences.map((absence) => (
-          <Card key={absence.id} className="flex flex-col gap-3">
+          <Card
+            key={absence.id}
+            onClick={editingId === absence.id ? undefined : () => setDetailAbsence(absence)}
+            className={`flex flex-col gap-3 ${editingId === absence.id ? "" : "cursor-pointer"}`}
+          >
             <div className="flex items-start justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => setDetailAbsence(absence)}
-                className="flex items-center gap-2.5 text-left"
-              >
+              <div className="flex items-center gap-2.5">
                 <Avatar name={absence.employeeName} size="sm" />
                 <span className="font-semibold text-slate-900">{absence.employeeName}</span>
-              </button>
+              </div>
               <Badge tone={absence.source === "admin" ? "orange" : "green"}>
                 {absence.source === "admin" ? "Admin" : "Karyawan"}
               </Badge>
@@ -563,7 +574,10 @@ export function AbsencesTable({
                     variant="primary"
                     className="px-3 py-1.5 text-xs"
                     disabled={loading}
-                    onClick={() => handleSaveEdit(absence)}
+                    onClick={(e) => {
+                              e.stopPropagation();
+                              handleSaveEdit(absence);
+                            }}
                   >
                     Simpan
                   </Button>
@@ -571,7 +585,10 @@ export function AbsencesTable({
                     type="button"
                     variant="ghost"
                     className="px-3 py-1.5 text-xs"
-                    onClick={() => setEditingId(null)}
+                    onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingId(null);
+                            }}
                   >
                     Batal
                   </Button>
@@ -602,7 +619,10 @@ export function AbsencesTable({
                 <div className="flex items-center gap-4 border-t border-slate-100 pt-3">
                   <button
                     type="button"
-                    onClick={() => startEdit(absence)}
+                    onClick={(e) => {
+                              e.stopPropagation();
+                              startEdit(absence);
+                            }}
                     className="flex items-center gap-1 text-xs font-semibold text-indigo-600"
                   >
                     <Pencil size={13} />
@@ -610,7 +630,10 @@ export function AbsencesTable({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(absence)}
+                    onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(absence);
+                            }}
                     className="flex items-center gap-1 text-xs font-semibold text-rose-600"
                   >
                     <Trash2 size={13} />
